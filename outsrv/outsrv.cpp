@@ -13,8 +13,8 @@ int main(int argc, char ** argv)
 {
 	printf("Info: Begin outsrv !!! \n");
 	
-	// °²×°ĞÅºÅ£¬ ÎªÁËgprof
-    // Ê¹ÓÃkill -s SIGUSR1 pid
+	// å®‰è£…ä¿¡å·ï¼Œ ä¸ºäº†gprof
+    // ä½¿ç”¨kill -s SIGUSR1 pid
     my_sigaction(SIGUSR1, sig_SIGUSR1_op);
 	
 	char tmp[30];

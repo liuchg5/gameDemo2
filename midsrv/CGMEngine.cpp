@@ -14,12 +14,12 @@ CGMEngine::~CGMEngine()
 
 }
 
-int CGMEngine::handle_client(StMsgBuffer * pmsg, CShmQueueMulti * pqm, CShmQueueSingle * pqs)
+int CGMEngine::handle_client(StMsgBuffer *pmsg, CShmQueueMulti *pqm, CShmQueueSingle *pqs)
 {
     CMsgHead *phead = (CMsgHead *)pmsg;
     uint16_t srcid = phead->srcid;
     uint16_t dstid = phead->dstid;
-	switch (phead->msgid)
+    switch (phead->msgid)
     {
     case MSGID_I2M_NEW_CONNECT:
         if (map.reg(srcid, dstid) < 0)
@@ -38,8 +38,9 @@ int CGMEngine::handle_client(StMsgBuffer * pmsg, CShmQueueMulti * pqm, CShmQueue
     case MSGID_REQUESTLOGIN:
         return handle_RequestLogin(pmsg, pqm, pqs);
         break;
-		
+
     default:
+        fprintf(stderr, "Err: handle_client wrong msgid = %d !!\n", phead->msgid);
         return -1;
         break;
     }
@@ -47,24 +48,25 @@ int CGMEngine::handle_client(StMsgBuffer * pmsg, CShmQueueMulti * pqm, CShmQueue
 }
 
 
-int CGMEngine::handle_db(StMsgBuffer * pmsg, CShmQueueMulti * pqm, CShmQueueSingle * pqs)
+int CGMEngine::handle_db(StMsgBuffer *pmsg, CShmQueueMulti *pqm, CShmQueueSingle *pqs)
 {
     CMsgHead *phead = (CMsgHead *)pmsg;
-	
-	switch (phead->msgid)
+
+    switch (phead->msgid)
     {
-	case MSGID_REQUESTUSERINFO:
+    case MSGID_REQUESTUSERINFO:
         return handle_RequestUserInfo(pmsg, pqm, pqs);
         break;
 
     default:
+        fprintf(stderr, "Err: handle_db wrong msgid = %d !!\n", phead->msgid);
         return -1;
         break;
     }
     return 0;
 }
 
-int CGMEngine::handle_RequestLogin(StMsgBuffer * pmsg, CShmQueueMulti * pqm, CShmQueueSingle * pqs)
+int CGMEngine::handle_RequestLogin(StMsgBuffer *pmsg, CShmQueueMulti *pqm, CShmQueueSingle *pqs)
 {
     StMsgBuffer tmpmsgbuf;
     tmpmsgbuf.n = 0;
@@ -78,8 +80,8 @@ int CGMEngine::handle_RequestLogin(StMsgBuffer * pmsg, CShmQueueMulti * pqm, CSh
     CRequestUserInfoPara *poutpara =
         (CRequestUserInfoPara *)(tmpmsgbuf.buf + sizeof(CMsgHead));
     // inpara.buf2para(pmsg->buf + sizeof(CMsgHead));
-    
-	pinpara->print(); // debug
+
+    // pinpara->print(); // debug
 
     strcpy(poutpara->m_szUserName, pinpara->username);
     // printf("pinpara->username %s\n", pinpara->username);
@@ -106,30 +108,32 @@ int CGMEngine::handle_RequestLogin(StMsgBuffer * pmsg, CShmQueueMulti * pqm, CSh
     return 0;
 }
 
-	
-int CGMEngine::handle_RequestUserInfo(StMsgBuffer * pmsg, CShmQueueMulti * pqm, CShmQueueSingle * pqs)
+
+int CGMEngine::handle_RequestUserInfo(StMsgBuffer *pmsg, CShmQueueMulti *pqm, CShmQueueSingle *pqs)
 {
-   StMsgBuffer tmpmsgbuf;
+    StMsgBuffer tmpmsgbuf;
     tmpmsgbuf.n = 0;
 
     int index;
 
     CMsgHead *phead = (CMsgHead *)pmsg;
-    // uint16_t srcid = phead->srcid;
+    uint16_t srcid = phead->srcid;
     uint16_t dstid = phead->dstid;
+    // printf("handle_RequestUserInfo() srcid = %d \n", srcid);
+    // printf("handle_RequestUserInfo() dstid = %d \n", dstid);
 
     CResponseUserInfoPara *pinpara =
         (CResponseUserInfoPara *)(pmsg->buf + sizeof(CMsgHead));
     CMsgResponseLoginPara *poutpara =
         (CMsgResponseLoginPara *)(tmpmsgbuf.buf + sizeof(CMsgHead));
     // inpara.buf2para(pmsg->buf + sizeof(CMsgHead));
-    
-	pinpara->print(); //debug
+
+    // pinpara->print(); //debug
 
     poutpara->m_unUin = pinpara->m_stPlayerInfo.m_unUin;
     poutpara->m_unSessionID = phead->dstid;
     poutpara->m_bResultID = 0;
-	memcpy(&poutpara->m_stPlayerInfo, &pinpara->m_stPlayerInfo, sizeof(m_stPlayerInfo));
+    memcpy(&poutpara->m_stPlayerInfo, &pinpara->m_stPlayerInfo, sizeof(m_stPlayerInfo));
 
 
     phead = (CMsgHead *)tmpmsgbuf.buf;
@@ -153,7 +157,9 @@ int CGMEngine::handle_RequestUserInfo(StMsgBuffer * pmsg, CShmQueueMulti * pqm, 
     // printf("CGMEngine::    msglen = %d \n", phead->msglen);
     if (pqm->pushmsg(index, &tmpmsgbuf) < 0)
     {
+
         fprintf(stderr, "Err: pqm->pushmsg() return neg val !!!\n");
+        fprintf(stderr, "Err: index = %d  !!!\n", index);
         return -1;
     }
     return 0;
@@ -173,7 +179,7 @@ int CGMEngine::handle_RequestUserInfo(StMsgBuffer * pmsg, CShmQueueMulti * pqm, 
 
 
 
-/* int CGMEngine::handle(StMsgBuffer *pmsg, CShmQueueMulti *pshmqm)
+int CGMEngine::handle_debug(StMsgBuffer *pmsg, CShmQueueMulti *pshmqm)
 {
     CMsgHead *phead = (CMsgHead *)pmsg;
     uint16_t srcid = phead->srcid;
@@ -194,7 +200,7 @@ int CGMEngine::handle_RequestUserInfo(StMsgBuffer * pmsg, CShmQueueMulti * pqm, 
         }
         break;
 
-    case MSGID_I2M_LOGIN:
+    case MSGID_REQUESTLOGIN:
         return handle_MSGID_I2M_LOGIN(pmsg, pshmqm);
         break;
 
@@ -239,7 +245,7 @@ int CGMEngine::handle_MSGID_I2M_LOGIN(StMsgBuffer *pmsg, CShmQueueMulti *pshmqm)
     phead = (CMsgHead *)tmpmsgbuf.buf;
     phead->msglen = sizeof(CMsgHead) + sizeof(CMsgResponseLoginPara);
     // printf("phead->msglen = %d\n", phead->msglen);
-    phead->msgid = MSGID_I2M_LOGIN; //16位无符号整型，消息ID
+    phead->msgid = MSGID_REQUESTLOGIN; //16位无符号整型，消息ID
     phead->msgtype = Response;   //16位无符号整型，消息类型，当前主要有Requst、Response以及Notify三种类型
     phead->msgseq = 1234567890;     //32位无符号整型，消息序列号
     phead->srcfe = FE_GAMESVRD ;       //8位无符号整型，消息发送者类型，当前主要有FE_CLIENT、FE_GAMESVRD以及FE_DBSVRD三种
@@ -261,4 +267,4 @@ int CGMEngine::handle_MSGID_I2M_LOGIN(StMsgBuffer *pmsg, CShmQueueMulti *pshmqm)
         return -1;
     }
     return 0;
-} */
+}

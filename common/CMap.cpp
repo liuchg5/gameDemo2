@@ -35,10 +35,12 @@ void CMap::clear()
 
 int CMap::reg(int index, int srvfd)
 {
+    // printf("reg(): index = %d, srvfd = %d\n", index, srvfd);
     for (int i = 1; i < size; ++i)
     {
         if (pindex[i] == index)
         {
+            fprintf(stderr, "Err: CMap reg() index is exist!!!\n");
             return -1;
         }
     }
@@ -51,10 +53,17 @@ int CMap::reg(int index, int srvfd)
             return i;
         }
     }
+    fprintf(stderr, "Err: CMap reg() is full !!!\n");
     return -1;
 }
 int CMap::fnd(int *pin, int srvfd)
 {
+    if (srvfd == 0)
+    {
+        fprintf(stderr, "Err: CMap fnd() srvfd == 0 !!!\n");
+        *pin = -1;
+        return -1;
+    }
     for (int i = 1; i < size; ++i)
     {
         if (psrvfd[i] == srvfd)
@@ -63,6 +72,7 @@ int CMap::fnd(int *pin, int srvfd)
             return i;
         }
     }
+    fprintf(stderr, "Err: CMap fnd() cannot find !!!\n");
     *pin = -1;
     return -1;
 }
@@ -77,6 +87,7 @@ int CMap::del(int index)
             return i;
         }
     }
+    fprintf(stderr, "Err: CMap del() index cannot find !!!\n");
     return -1;
 }
 

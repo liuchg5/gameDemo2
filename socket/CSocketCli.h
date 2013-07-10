@@ -13,6 +13,8 @@
 #include <error.h>
 
 #include "../msg/StMsgBuffer.h"
+#include "../msg/CMsgPara.h"
+#include "../msg/CMsgHead.h"
 #include "../queue/CShmQueueSingle.h"
 #include "../common/common.h"
 
@@ -21,9 +23,9 @@ class CSocketCli
 public:
 	int clifd;
 
-	int recvflag, sendflag; // ½ÓÊÕºÍ·¢ËÍÏûÏ¢µÄ±êÖ¾, 0Î´½ÓÊÜµ½ÍêÕûÏûÏ¢£¬1½ÓÊÜµ½ÍêÕûÏûÏ¢
-    StMsgBuffer recvmsg; // »º´æ½ÓÊÕµ½µÄÏûÏ¢
-    StMsgBuffer sendmsg; // »º´æÒª·¢ËÍµÄÏûÏ¢
+	int recvflag, sendflag; // æ¥æ”¶å’Œå‘é€æ¶ˆæ¯çš„æ ‡å¿—, 0æœªæ¥å—åˆ°å®Œæ•´æ¶ˆæ¯ï¼Œ1æ¥å—åˆ°å®Œæ•´æ¶ˆæ¯
+    StMsgBuffer recvmsg; // ç¼“å­˜æ¥æ”¶åˆ°çš„æ¶ˆæ¯
+    StMsgBuffer sendmsg; // ç¼“å­˜è¦å‘é€çš„æ¶ˆæ¯
 
 	
 	
@@ -33,6 +35,8 @@ public:
 	int myclose();
 	int recv_and_send(CShmQueueSingle * precvQ, CShmQueueSingle * psendQ);
 	int is_connected();
+
+	int recv_and_send_debug(CShmQueueSingle * precvQ, CShmQueueSingle * psendQ);
 };
 
 

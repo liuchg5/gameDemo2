@@ -11,7 +11,7 @@
 
 #define IN_SLEEP_TIME	100
 #define MID_SLEEP_TIME	100
-#define OUT_SLEEP_TIME	100
+#define OUT_SLEEP_TIME	10
 
 
 

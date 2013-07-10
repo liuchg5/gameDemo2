@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 		port = 12345;
 	}
 
-    CSocketSrvEpoll srv(10, 1000, 5);//epollsize epolltimeout listenq
+    CSocketSrvEpoll srv(10, 10, 5);//epollsize epolltimeout listenq
     srv.open(tmp, port);
 
     CShmQueueSingle sinq;

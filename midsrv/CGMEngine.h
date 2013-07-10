@@ -23,13 +23,13 @@ public:
 	int handle_client(StMsgBuffer * pmsg, CShmQueueMulti * pqm, CShmQueueSingle * pqs);
 	int handle_db(StMsgBuffer * pmsg, CShmQueueMulti * pqm, CShmQueueSingle * pqs);
 
-private:
+
 	int handle_RequestLogin(StMsgBuffer * pmsg, CShmQueueMulti * pqm, CShmQueueSingle * pqs);
 	int handle_RequestUserInfo(StMsgBuffer * pmsg, CShmQueueMulti * pqm, CShmQueueSingle * pqs);
 
 
-	// int handle(StMsgBuffer * pinmsg, CShmQueueMulti * pshmqm);
-	// int handle_MSGID_I2M_LOGIN(StMsgBuffer * pinmsg, CShmQueueMulti * pshmqm);
+	 int handle_debug(StMsgBuffer * pinmsg, CShmQueueMulti * pshmqm);  //debug
+	 int handle_MSGID_I2M_LOGIN(StMsgBuffer * pinmsg, CShmQueueMulti * pshmqm);//debug
 };
 
 #endif

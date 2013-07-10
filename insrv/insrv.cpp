@@ -10,6 +10,7 @@
 
 int main(int argc, char **argv)
 {
+    printf("Info: begin insrv! \n");
     // 安装信号， 为了gprof
     // 使用kill -s SIGUSR1 pid
     my_sigaction(SIGUSR1, sig_SIGUSR1_op);

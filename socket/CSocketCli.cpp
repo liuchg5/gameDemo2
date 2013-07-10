@@ -2,12 +2,12 @@
 
 
 CSocketCli::CSocketCli():
-	clifd(-1),
-	recvflag(0), // ±íÊ¾recvmsgÎª¿Õ
-	sendflag(0)  // ±íÊ¾sendmsgÎª¿Õ
-{	
-	memset(&recvmsg, 0, sizeof(recvmsg));
-	memset(&sendmsg, 0, sizeof(sendmsg));
+    clifd(-1),
+    recvflag(0), // è¡¨ç¤ºrecvmsgä¸ºç©º
+    sendflag(0)  // è¡¨ç¤ºsendmsgä¸ºç©º
+{
+    memset(&recvmsg, 0, sizeof(recvmsg));
+    memset(&sendmsg, 0, sizeof(sendmsg));
 }
 
 CSocketCli::~CSocketCli()
@@ -15,264 +15,333 @@ CSocketCli::~CSocketCli()
 
 }
 
-int CSocketCli::open(const char * servAddr, int portNumber)
+int CSocketCli::open(const char *servAddr, int portNumber)
 {
-	int port_number = portNumber;
-	char srv_addr[30];
-	strcpy(srv_addr, servAddr);
-	
-	struct sockaddr_in serveraddr;
-	
-	serveraddr.sin_family = AF_INET; //ÉèÖÃÎªIPÍ¨ÐÅ  
-	serveraddr.sin_addr.s_addr = inet_addr(srv_addr); //·þÎñÆ÷IPµØÖ·  
-	serveraddr.sin_port = htons(port_number); //·þÎñÆ÷¶Ë¿ÚºÅ  
-	
-	/*´´½¨¿Í»§¶ËÌ×½Ó×Ö--IPv4Ð­Òé£¬ÃæÏòÁ¬½ÓÍ¨ÐÅ£¬TCPÐ­Òé*/
-	if ((clifd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
-		fprintf(stderr, "Err: CSocketCli socket(PF_INET, SOCK_STREAM, 0) failed! \n ");
-		fprintf(stderr, "Err: CSocketCli errno = %d (%s) \n ", errno, strerror(errno));
-		return -1;
-	}
-	
-	// ÉèÎª·Ç×èÈû
+    int port_number = portNumber;
+    char srv_addr[30];
+    strcpy(srv_addr, servAddr);
+
+    struct sockaddr_in serveraddr;
+
+    serveraddr.sin_family = AF_INET; //è®¾ç½®ä¸ºIPé€šä¿¡
+    serveraddr.sin_addr.s_addr = inet_addr(srv_addr); //æœåŠ¡å™¨IPåœ°å€
+    serveraddr.sin_port = htons(port_number); //æœåŠ¡å™¨ç«¯å£å·
+
+    /*åˆ›å»ºå®¢æˆ·ç«¯å¥—æŽ¥å­—--IPv4åè®®ï¼Œé¢å‘è¿žæŽ¥é€šä¿¡ï¼ŒTCPåè®®*/
+    if ((clifd = socket(PF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        fprintf(stderr, "Err: CSocketCli socket(PF_INET, SOCK_STREAM, 0) failed! \n ");
+        fprintf(stderr, "Err: CSocketCli errno = %d (%s) \n ", errno, strerror(errno));
+        return -1;
+    }
+
+    // è®¾ä¸ºéžé˜»å¡ž
     if (setnonblocking(clifd) != 0)
     {
         fprintf(stderr, "Err: CSocketCli setnonblocking() failed!\n ");
         fprintf(stderr, "Err: CSocketCli errno = %d (%s) \n ", errno, strerror(errno));
     }
-	
-	/*½«Ì×½Ó×Ö°ó¶¨µ½·þÎñÆ÷µÄÍøÂçµØÖ·ÉÏ*/
-	if (connect(clifd, (struct sockaddr *) &serveraddr, sizeof(struct sockaddr)) < 0) {
-		if (errno != EINPROGRESS)
-		{
-			fprintf(stderr, "Err: CSocketCli connect() failed! \n ");
-			fprintf(stderr, "Err: CSocketCli errno = %d (%s) \n ", errno, strerror(errno));
-			return -1;
-		}
-		else
-		{
-			fprintf(stderr, "Warn: CSocketCli connect() is in progress... \n");
-		}
-	}
-	else
-	{
-		fprintf(stdout, "Info: CSocketCli connect() finished! \n");
-	}
-	return 0;
+
+    /*å°†å¥—æŽ¥å­—ç»‘å®šåˆ°æœåŠ¡å™¨çš„ç½‘ç»œåœ°å€ä¸Š*/
+    if (connect(clifd, (struct sockaddr *) &serveraddr, sizeof(struct sockaddr)) < 0)
+    {
+        if (errno != EINPROGRESS)
+        {
+            fprintf(stderr, "Err: CSocketCli connect() failed! \n ");
+            fprintf(stderr, "Err: CSocketCli errno = %d (%s) \n ", errno, strerror(errno));
+            return -1;
+        }
+        else
+        {
+            fprintf(stderr, "Warn: CSocketCli connect() is in progress... \n");
+        }
+    }
+    else
+    {
+        fprintf(stdout, "Info: CSocketCli connect() finished! \n");
+    }
+    return 0;
 }
 int CSocketCli::myclose()
 {
-	close(clifd);
-	//TODO 
-	clifd = -1;
-	memset(&recvmsg, 0, sizeof(recvmsg));
-	memset(&sendmsg, 0, sizeof(sendmsg));
-	sendflag = 0;
-	recvflag = 0;
-	return 0;
+    close(clifd);
+    //TODO
+    clifd = -1;
+    memset(&recvmsg, 0, sizeof(recvmsg));
+    memset(&sendmsg, 0, sizeof(sendmsg));
+    sendflag = 0;
+    recvflag = 0;
+    return 0;
 }
 
 
-int CSocketCli::recv_and_send(CShmQueueSingle * precvQ, CShmQueueSingle * psendQ)
+int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
 {
-	//Ò»°ãÒªÍ¨¹ýselectÀ´ÅÐ¶Ï£¬µ«ÕâÀï¼ò»¯´¦Àí£¬¼ÙÉè³É¹¦
-	//Ò»´Î´¦ÀíÍê
-	
-	ssize_t n;
-	uint32_t msglen;
-	
-	// ´¦Àí½ÓÊÕ
-	if (recvflag == 1) //´¦ÀíÉÏ´ÎÍøÂçÃ»·¢ËÍÍêµÄ
-	{
-		if (precvQ->pushmsg(&recvmsg) >= 0)
-		{
-			recvmsg.n = 0;
-			recvflag = 0;
-		}
-		else
-		{
-			fprintf(stderr, "Err: CSocketCli recvQ is full < 0 !!!!!!\n ");
-		}
-	}
-	while (recvflag == 0)
-	{
-		if (recvmsg.n < 4)
-		{
-			n = recv(clifd, recvmsg.buf + recvmsg.n, 4 - recvmsg.n, 0);
-			if (n > 0)
-			{
-				recvmsg.n += n;
-			}
-			else if (n < 0)
-			{
-				if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
-				{
-					break;
-				}
-				else if (errno == ECONNRESET)
-				{
-					fprintf(stderr, "Err: CSocketCli ECONNRESET \n ");
-					myclose();
-					return -1;
-				}
-				else
-				{
-					fprintf(stderr, "Err: CSocketCli recv n < 0 but donot why \n ");
-					myclose();
-					return -1;
-				}
-			}
-			else if (n == 0)
-			{
-				fprintf(stderr, "Err: CSocketCli recv n == 0 \n ");
-				myclose();
-				return -1;
-			}
-		}
-		if (recvmsg.n >= 4) // recvmsg.n >= 4
-		{
-			msglen = *(uint32_t *)recvmsg.buf;
-			n = recv(clifd, recvmsg.buf + recvmsg.n, msglen - recvmsg.n, 0); 
-			if (n > 0)
-			{
-				recvmsg.n += n;
-				if (msglen == recvmsg.n) // ¶ÁÈ¡ÍêÁËmsg
-				{
-					if (precvQ->pushmsg(&recvmsg) >= 0)
-					{
-						recvmsg.n = 0;
-						recvflag = 0;
-					}
-					else
-					{
-						fprintf(stderr, "Err: CSocketCli recvQ is full < 0 !!!!!!\n ");
-						recvflag = 1;
-					}
-				}
-			}
-			else if (n < 0)
-			{
-				if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
-				{
-					break;
-				}
-				else if (errno == ECONNRESET)
-				{
-					fprintf(stderr, "Err: CSocketCli ECONNRESET \n ");
-					myclose();
-					return -1;
-				}
-				else
-				{
-					fprintf(stderr, "Err: CSocketCli recv n < 0 but donot why \n ");
-					myclose();
-					return -1;
-				}
-			}
-			else if (n == 0)
-			{
-				fprintf(stderr, "Err: CSocketCli recv n == 0 \n ");
-				myclose();
-				return -1;
-			}	
-		}
-	} // while (recvflag == 0)
-	
-	// ´¦Àí·¢ËÍ
-	if (sendflag == 0)
-	{
-		if (psendQ->popmsg(&sendmsg) >= 0)
-		{
-			sendmsg.n = 0;
-			sendflag = 1;
-		}
-		else
-		{
-			;
-		}
-	
-	}
-	while (sendflag == 1)
-	{
-		msglen = *(uint32_t *)sendmsg.buf;
-		n = send(clifd, sendmsg.buf + sendmsg.n, msglen - sendmsg.n, 0);
-		if (n < 0)
-		{
-			if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
-			{
-				break;
-			}
-			else if (errno == ECONNRESET)
-			{
-				fprintf(stderr, "Err: CSocketCli ECONNRESET \n ");
-				myclose();
-				return -1;
-			}
-			else
-			{
-				fprintf(stderr, "Err: CSocketCli recv n < 0 but donot why \n ");
-				myclose();
-				return -1;
-			}
-		}
-		else if (n == 0)
-		{
-			fprintf(stderr, "Err: CSocketCli send() n == 0 \n");
-		}
-		else if (n > 0)
-		{
-			sendmsg.n += n;
-			if (msglen == sendmsg.n)  // ·¢ËÍÍêÁË£¬È¡ÐÂmsg
-			{
-				if (psendQ->popmsg(&sendmsg) >= 0)
-				{
-					sendflag = 1;
-					sendmsg.n = 0;
-				}
-				else
-				{
-					sendflag = 0;
-				}
-			}
-		}
-	} // while (sendflag == 1)
-	return 0;
+    //ä¸€èˆ¬è¦é€šè¿‡selectæ¥åˆ¤æ–­ï¼Œä½†è¿™é‡Œç®€åŒ–å¤„ç†ï¼Œå‡è®¾æˆåŠŸ
+    //ä¸€æ¬¡å¤„ç†å®Œ
+
+    ssize_t n;
+    uint32_t msglen;
+
+    // å¤„ç†æŽ¥æ”¶
+    if (recvflag == 1) //å¤„ç†ä¸Šæ¬¡ç½‘ç»œæ²¡å‘é€å®Œçš„
+    {
+        if (precvQ->pushmsg(&recvmsg) >= 0)
+        {
+            recvmsg.n = 0;
+            recvflag = 0;
+        }
+        else
+        {
+            fprintf(stderr, "Err: CSocketCli recvQ is full < 0 !!!!!!\n ");
+        }
+    }
+    while (recvflag == 0)
+    {
+        if (recvmsg.n < 4)
+        {
+            n = recv(clifd, recvmsg.buf + recvmsg.n, 4 - recvmsg.n, 0);
+            if (n > 0)
+            {
+                recvmsg.n += n;
+            }
+            else if (n < 0)
+            {
+                if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
+                {
+                    // printf("recv() have to wait\n");
+                    break;
+                }
+                else if (errno == ECONNRESET)
+                {
+                    fprintf(stderr, "Err: CSocketCli ECONNRESET \n ");
+                    myclose();
+                    return -1;
+                }
+                else
+                {
+                    fprintf(stderr, "Err: CSocketCli recv n < 0 but donot why \n ");
+                    myclose();
+                    return -1;
+                }
+            }
+            else if (n == 0)
+            {
+                fprintf(stderr, "Err: CSocketCli recv n == 0 \n ");
+                myclose();
+                return -1;
+            }
+        }
+        if (recvmsg.n >= 4) // recvmsg.n >= 4
+        {
+            msglen = *(uint32_t *)recvmsg.buf;
+            n = recv(clifd, recvmsg.buf + recvmsg.n, msglen - recvmsg.n, 0);
+            if (n > 0)
+            {
+                recvmsg.n += n;
+                if (msglen == recvmsg.n) // è¯»å–å®Œäº†msg
+                {
+                    if (precvQ->pushmsg(&recvmsg) >= 0)
+                    {
+                        recvmsg.n = 0;
+                        recvflag = 0;
+                    }
+                    else
+                    {
+                        fprintf(stderr, "Err: CSocketCli recvQ is full < 0 !!!!!!\n ");
+                        recvflag = 1;
+                    }
+                }
+            }
+            else if (n < 0)
+            {
+                if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
+                {
+                    // printf("recv() have to wait\n");
+                    break;
+                }
+                else if (errno == ECONNRESET)
+                {
+                    fprintf(stderr, "Err: CSocketCli ECONNRESET \n ");
+                    myclose();
+                    return -1;
+                }
+                else
+                {
+                    fprintf(stderr, "Err: CSocketCli recv n < 0 but donot why \n ");
+                    myclose();
+                    return -1;
+                }
+            }
+            else if (n == 0)
+            {
+                fprintf(stderr, "Err: CSocketCli recv n == 0 \n ");
+                myclose();
+                return -1;
+            }
+        }
+    } // while (recvflag == 0)
+
+    // å¤„ç†å‘é€
+    if (sendflag == 0)
+    {
+        if (psendQ->popmsg(&sendmsg) >= 0)
+        {
+            sendmsg.n = 0;
+            sendflag = 1;
+        }
+        else
+        {
+            ;
+        }
+
+    }
+    while (sendflag == 1)
+    {
+        msglen = *(uint32_t *)sendmsg.buf;
+        n = send(clifd, sendmsg.buf + sendmsg.n, msglen - sendmsg.n, 0);
+        if (n < 0)
+        {
+            if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
+            {
+                printf("send() have to wait\n");
+                break;
+            }
+            else if (errno == ECONNRESET)
+            {
+                fprintf(stderr, "Err: CSocketCli ECONNRESET \n ");
+                myclose();
+                return -1;
+            }
+            else
+            {
+                fprintf(stderr, "Err: CSocketCli recv n < 0 but donot why \n ");
+                myclose();
+                return -1;
+            }
+        }
+        else if (n == 0)
+        {
+            fprintf(stderr, "Err: CSocketCli send() n == 0 \n");
+        }
+        else if (n > 0)
+        {
+            sendmsg.n += n;
+            if (msglen == sendmsg.n)  // å‘é€å®Œäº†ï¼Œå–æ–°msg
+            {
+                if (psendQ->popmsg(&sendmsg) >= 0)
+                {
+                    sendflag = 1;
+                    sendmsg.n = 0;
+                }
+                else
+                {
+                    sendflag = 0;
+                }
+            }
+        }
+    } // while (sendflag == 1)
+    return 0;
 }
 
 int CSocketCli::is_connected()
 {
-	fd_set rset, wset;    
-	struct timeval waitd;             
-	int ret;            
-  
-    waitd.tv_sec = 1;     // Make select wait up to 1 second for data  
-    waitd.tv_usec = 0;    // and 0 milliseconds.  
-    FD_ZERO(&rset); // Zero the flags ready for using  
-    FD_ZERO(&wset);  
-    FD_SET(clifd, &rset);  
-	FD_SET(clifd, &wset); 
-	
-    ret = select(clifd + 1, &rset, &wset, NULL, &waitd);  
-	if (ret == 0) //timeout
-	{
-		return 0;
-	}
+    fd_set rset, wset;
+    struct timeval waitd;
+    int ret;
 
-    if(FD_ISSET(clifd, &rset) || FD_ISSET(clifd, &wset)) 
-	{ //Socket read or write available
-		// int len = sizeof(error);
-		// if (getsockopt(clifd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
-		// {
-			// return -1;
-		// }
-	}
-	else
-	{
-		return -1;
-	}
-	return 1;
+    waitd.tv_sec = 1;     // Make select wait up to 1 second for data
+    waitd.tv_usec = 0;    // and 0 milliseconds.
+    FD_ZERO(&rset); // Zero the flags ready for using
+    FD_ZERO(&wset);
+    FD_SET(clifd, &rset);
+    FD_SET(clifd, &wset);
+
+    ret = select(clifd + 1, &rset, &wset, NULL, &waitd);
+    if (ret == 0) //timeout
+    {
+        return 0;
+    }
+
+    if (FD_ISSET(clifd, &rset) || FD_ISSET(clifd, &wset))
+    {
+        //Socket read or write available
+        // int len = sizeof(error);
+        // if (getsockopt(clifd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
+        // {
+        // return -1;
+        // }
+    }
+    else
+    {
+        return 0;
+    }
+    return 1;
 }
+
+
+
+
+int CSocketCli::recv_and_send_debug(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
+{
+    //ä¸€èˆ¬è¦é€šè¿‡selectæ¥åˆ¤æ–­ï¼Œä½†è¿™é‡Œç®€åŒ–å¤„ç†ï¼Œå‡è®¾æˆåŠŸ
+    //ä¸€æ¬¡å¤„ç†å®Œ
+
+
+    if (psendQ->popmsg(&sendmsg) > 0)
+    {
+
+    CMsgHead *phead = (CMsgHead *)sendmsg.buf;
+    uint16_t srcid = phead->srcid;
+    uint16_t dstid = phead->dstid;
+    // printf("recv_and_send_debug sendmsg srcid = %d\n", srcid);
+    // printf("recv_and_send_debug sendmsg dstid = %d\n", dstid);
+
+    CResponseUserInfoPara *poutpara =
+        (CResponseUserInfoPara *)(recvmsg.buf + sizeof(CMsgHead));
+
+    // pinpara->print(); // debug
 	
-	
-	
-	
+
+    strcpy(poutpara->m_stPlayerInfo.m_szUserName, "TestName");
+    poutpara->m_stPlayerInfo.m_unUin = 1;
+    poutpara->m_stPlayerInfo.m_bySex = 0;
+    poutpara->m_stPlayerInfo.m_unLevel = 99;
+    poutpara->m_stPlayerInfo.m_unWin = 90;
+    poutpara->m_stPlayerInfo.m_unLose = 8;
+    poutpara->m_stPlayerInfo.m_unRun = 1;
+    strcpy(poutpara->m_szPwd, "password");
+    poutpara->m_bResultID = 3;
+
+
+    phead = (CMsgHead *)recvmsg.buf;
+    phead->msglen = sizeof(CMsgHead) + sizeof(CResponseUserInfoPara);
+    // printf("phead->msglen = %d\n", phead->msglen);
+    phead->msgid = MSGID_REQUESTUSERINFO; //16ä½æ— ç¬¦å·æ•´åž‹ï¼Œæ¶ˆæ¯ID
+    phead->msgtype = Response;   //16ä½æ— ç¬¦å·æ•´åž‹ï¼Œæ¶ˆæ¯ç±»åž‹ï¼Œå½“å‰ä¸»è¦æœ‰Requstã€Responseä»¥åŠNotifyä¸‰ç§ç±»åž‹
+    phead->msgseq = 1234567890;     //32ä½æ— ç¬¦å·æ•´åž‹ï¼Œæ¶ˆæ¯åºåˆ—å·
+    phead->srcfe = FE_DBSVRD ;       //8ä½æ— ç¬¦å·æ•´åž‹ï¼Œæ¶ˆæ¯å‘é€è€…ç±»åž‹ï¼Œå½“å‰ä¸»è¦æœ‰FE_CLIENTã€FE_GAMESVRDä»¥åŠFE_DBSVRDä¸‰ç§
+    phead->dstfe = FE_GAMESVRD;     //8ä½æ— ç¬¦å·æ•´åž‹ï¼Œæ¶ˆæ¯æŽ¥æ”¶è€…ç±»åž‹ åŒä¸Š
+    phead->srcid = dstid;   //16ä½æ— ç¬¦å·æ•´åž‹ï¼Œå½“å®¢æˆ·ç«¯å‘æ¸¸æˆæœåŠ¡å™¨å‘é€æ¶ˆæ¯æ—¶ScrIDä¸ºSessionID
+    phead->dstid = srcid;   //16ä½æ— ç¬¦å·æ•´åž‹ï¼Œå½“æ¸¸æˆæœåŠ¡å™¨å‘å®¢æˆ·ç«¯å‘é€æ¶ˆæ¯æ˜¯DstIDä¸ºSessionID
+
+    // printf("recv_and_send_debug recvmsg srcid = %d\n", phead->srcid);
+    // printf("recv_and_send_debug recvmsg dstid = %d\n", phead->dstid);
+
+
+
+
+
+        if (precvQ->pushmsg(&recvmsg) < 0)
+        {
+            fprintf(stderr, "Err: CSocketCli recvQ is full < 0 !!!!!!\n ");
+        }
+
+    }
+    else
+    {
+        ;
+    }
+
+    return 0;
+}

@@ -14,3 +14,9 @@ add "db_insrv"
 add "db_midsrv"
 finish gmsrv(insrv, midsrv, outsrv) and dbsrv(insrv, midsrv)
 every srv can run but nothing print out!!!
+
+2013-07-10 Night 
+still cannot find why the whole process is very slow!!!
+if outsrv donot send msg by socket, 
+instead of that, if outsrv just handle msg without socket to dbsrv, then it fast!!!
+maybe the problem is "CSocketCli"!!!!!

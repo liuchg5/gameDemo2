@@ -56,6 +56,10 @@ int CQueue::pop(char *base, char *buf)  // 原子操作，读取完整msg  遵�
     {
         // 直接读即可
         memcpy(&len, base + r, 4); //获取长度值
+        if (len > size()) // 只有长度值
+        {
+            return -1;
+        }
         memcpy(buf, base + r, len);
         r += len;
         return (len);
@@ -72,6 +76,10 @@ int CQueue::pop(char *base, char *buf)  // 原子操作，读取完整msg  遵�
         {
             memcpy(&len, base + r, n);
             memcpy(((char *)&len + n), base, 4 - n);
+        }
+        if (len > size()) // 只有长度值
+        {
+            return -1;
         }
         if (n >= len)
         {
@@ -103,6 +111,10 @@ int CQueue::pop_just(char *base) // 原子操作，读取完整msg  遵循的规
     {
         // 直接读即可
         memcpy(&len, base + r, 4); //获取长度值
+        if (len > size()) // 只有长度值
+        {
+            return -1;
+        }
         r += len;
         return (len);
     }
@@ -118,6 +130,10 @@ int CQueue::pop_just(char *base) // 原子操作，读取完整msg  遵循的规
         {
             memcpy(&len, base + r, n);
             memcpy(((char *)&len + n), base, 4 - n);
+        }
+        if (len > size()) // 只有长度值
+        {
+            return -1;
         }
         if (n >= len)
         {
@@ -146,6 +162,10 @@ int CQueue::top(char *base, char *buf)  // 原子操作，读取完整msg  遵�
     {
         // 直接读即可
         memcpy(&len, base + r, 4); //获取长度值
+        if (len > size()) // 只有长度值
+        {
+            return -1;
+        }
         memcpy(buf, base + r, len);
         //r += len;
         return (len);
@@ -162,6 +182,10 @@ int CQueue::top(char *base, char *buf)  // 原子操作，读取完整msg  遵�
         {
             memcpy(&len, base + r, n);
             memcpy(((char *)&len + n), base, 4 - n);
+        }
+        if (len > size()) // 只有长度值
+        {
+            return -1;
         }
         if (n >= len)
         {
@@ -196,6 +220,10 @@ int CQueue::top_just(char *base) // 原子操作，读取完整msg  遵循的规
     {
         // 直接读即可
         memcpy(&len, base + r, 4); //获取长度值
+        if (len > size()) // 只有长度值
+        {
+            return -1;
+        }
         // memcpy(buf, base+r, len);
         //r += len;
         return (len);
@@ -212,6 +240,10 @@ int CQueue::top_just(char *base) // 原子操作，读取完整msg  遵循的规
         {
             memcpy(&len, base + r, n);
             memcpy(((char *)&len + n), base, 4 - n);
+        }
+        if (len > size()) // 只有长度值
+        {
+            return -1;
         }
         // if (n >= len){
         //           // memcpy(buf, base+r, len);

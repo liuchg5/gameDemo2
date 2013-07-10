@@ -21,6 +21,7 @@ struct ST_thr_fn_arg
 {
     long time;
     int up;
+    char addr[30];
 };
 
 void *thr_fn(void *argv)
@@ -32,7 +33,7 @@ void *thr_fn(void *argv)
     char buf[1024];
 
     // 打开阻塞模型的socket
-    fd = open_socket("192.168.234.128", 10203);
+    fd = open_socket(((struct ST_thr_fn_arg *)argv)->addr, 10203);
     if (fd == -1)
     {
         fprintf(stderr, "Err: open_socket() failed! \n");
@@ -40,7 +41,7 @@ void *thr_fn(void *argv)
     }
 
     phead->msglen = sizeof(CMsgHead) + sizeof(CMsgRequestLoginPara);
-    phead->msgid = MSGID_I2M_LOGIN; //16位无符号整型，消息ID
+    phead->msgid = MSGID_REQUESTLOGIN; //16位无符号整型，消息ID
     phead->msgtype = Request;   //16位无符号整型，消息类型，当前主要有Requst、Response以及Notify三种类型
     phead->msgseq = 1234567890;     //32位无符号整型，消息序列号
     phead->srcfe = FE_CLIENT;       //8位无符号整型，消息发送者类型，当前主要有FE_CLIENT、FE_GAMESVRD以及FE_DBSVRD三种
@@ -112,21 +113,31 @@ int main(int argc, char **argv)
 
     struct ST_thr_fn_arg thr_fn_arg;
 
-    if (argc == 4)
+    if (argc == 5)
     {
         n_thread = atoi(argv[1]);
-        thr_fn_arg.time = atoi(argv[2]);
-        thr_fn_arg.up = atoi(argv[3]);
+        strcpy(thr_fn_arg.addr, argv[2]);
+        thr_fn_arg.time = atoi(argv[3]);
+        thr_fn_arg.up = atoi(argv[4]);
+    }
+    else if (argc == 4)
+    {
+        n_thread = atoi(argv[1]);
+        strcpy(thr_fn_arg.addr, argv[2]);
+        thr_fn_arg.time = atoi(argv[3]);
+        thr_fn_arg.up = 1000;
     }
     else if (argc == 3)
     {
         n_thread = atoi(argv[1]);
-        thr_fn_arg.time = atoi(argv[2]);
+        strcpy(thr_fn_arg.addr, argv[2]);
+        thr_fn_arg.time = 1000;
         thr_fn_arg.up = 1000;
     }
     else if (argc == 2)
     {
         n_thread = atoi(argv[1]);
+        strcpy(thr_fn_arg.addr, "127.0.0.1");
         thr_fn_arg.time = 1000;
         thr_fn_arg.up = 1000;
     }

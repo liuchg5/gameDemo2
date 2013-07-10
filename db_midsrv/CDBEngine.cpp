@@ -40,7 +40,7 @@ int CDBEngine::handle(StMsgBuffer * pmsg, CShmQueueMulti * pqm)
         break;
 		
     default:
-		fprintf(stderr, "Err: wrong msgid !!\n");
+		fprintf(stderr, "Err: CDBEngine::handle() wrong msgid !!\n");
         return -1;
         break;
     }
@@ -66,7 +66,7 @@ int CDBEngine::handle_RequestUserInfo(StMsgBuffer * pmsg, CShmQueueMulti * pqm)
     CResponseUserInfoPara *poutpara =
         (CResponseUserInfoPara *)(tmpmsgbuf.buf + sizeof(CMsgHead));
 
-    pinpara->print(); // debug
+    // pinpara->print(); // debug
 	
 
     strcpy(poutpara->m_stPlayerInfo.m_szUserName, pinpara->m_szUserName);
@@ -90,6 +90,8 @@ int CDBEngine::handle_RequestUserInfo(StMsgBuffer * pmsg, CShmQueueMulti * pqm)
     phead->dstfe = FE_GAMESVRD;     //8位无符号整型，消息接收者类型 同上
     phead->srcid = dstid;   //16位无符号整型，当客户端向游戏服务器发送消息时ScrID为SessionID
     phead->dstid = srcid;   //16位无符号整型，当游戏服务器向客户端发送消息是DstID为SessionID
+
+    // printf("sendmsg srcid = %d\n", phead->srcid);
 
 
     if (map.fnd(&index, dstid) < 0)

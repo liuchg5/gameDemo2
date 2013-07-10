@@ -60,17 +60,16 @@ int main(int argc, char **argv)
 		
 		while (sinq_from_out.popmsg(&msgbuf) > 0)
 		{
+            // printf("sinq_from_out.popmsg(&msgbuf) \n");
 			gme.handle_db(&msgbuf, &mulq, &sinq_to_out);
 		}
-        // while (sinq.popmsg(&inmsgbuf) > 0)
+
+        // while (sinq.popmsg(&msgbuf) > 0)   // debug!!!
         // {
-            // midhan.handle(&inmsgbuf, &mulq);
+        //     gme.handle_debug(&msgbuf, &mulq);
         // }
 
-        // while (sinq_from_out.popmsg(&inmsgbuf) > 0)
-        // {
-        //     midhan.handle(&inmsgbuf, &sinq_to_out);
-        // }
+
 
         usleep(MID_SLEEP_TIME);
     }

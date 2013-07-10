@@ -25,27 +25,27 @@ int main(int argc, char **argv)
 	else if (argc == 2)
 	{
 		strcpy(tmp, argv[1]);
-		port = 10203;
+		port = 12345;
 	}
 	else
 	{
 		strcpy(tmp, "127.0.0.1");
-		port = 10203;
+		port = 12345;
 	}
 
-    CSocketSrvEpoll srv(GLOBAL_EPOLL_SIZE, 1000, 500);//epollsize epolltimeout listenq
+    CSocketSrvEpoll srv(10, 1000, 5);//epollsize epolltimeout listenq
     srv.open(tmp, port);
 
     CShmQueueSingle sinq;
-    sinq.crt(1024 * 1024 * 4, 1111);
+    sinq.crt(1024 * 1024 * 1, 5555);
     sinq.get();
     sinq.init();
     sinq.clear();
 
     CShmQueueMulti mulq;
-    mulq.crt(1024 * 1024 * 2, 2222);
+    mulq.crt(1024 * 1024 * 1, 6666);
     mulq.get();
-    mulq.init(GLOBAL_EPOLL_SIZE);
+    mulq.init(10);
     mulq.clear();
 
     while (1)

@@ -1,11 +1,12 @@
 *.bak
+debug
 insrv/insrv
 midsrv/midsrv
 outsrv/outsrv
 client/client
 simclient/simclient
-debug
-
+db_insrv/db_insrv
+db_midsrv/db_midsrv
 
 # Compiled source #
 ###################

@@ -1,4 +1,4 @@
-CPDIR = ../debug/ ../insrv/  ../midsrv/ ../outsrv/ ../simclient  ../client
+CPDIR = ../debug/ ../insrv/  ../midsrv/ ../outsrv/ ../simclient  ../client  ../db_insrv/ ../db_midsrv/
 TARGET = all
 
 

@@ -421,7 +421,7 @@ int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
                     }
 
                 }
-                //-------------- 要发送数据，进行发送操作
+            
             }
 
         }

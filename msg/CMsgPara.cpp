@@ -72,3 +72,28 @@ void CMsgResponseLoginPara::print()
 	printf("  m_unRun: %d \n", m_stPlayerInfo.m_unRun);
 	printf("-----------------END------------------\n");
 }
+
+
+
+void CRequestUserInfoPara::print()
+{
+	printf("------CRequestUserInfoPara begin print-------\n");
+	printf("m_szUserName: %s \n", m_szUserName);
+	printf("-----------------END------------------\n");
+}
+
+void CResponseUserInfoPara::print()
+{
+	printf("------CResponseUserInfoPara begin print-------\n");
+	printf("m_stPlayerInfo: \n" );
+	printf("  m_szUserName: %s \n", m_stPlayerInfo.m_szUserName);
+	printf("  m_unUin: %d \n", m_stPlayerInfo.m_unUin);
+	printf("  m_bySex: %d \n", m_stPlayerInfo.m_bySex);
+	printf("  m_unLevel: %d \n", m_stPlayerInfo.m_unLevel);
+	printf("  m_unWin: %d \n", m_stPlayerInfo.m_unWin);
+	printf("  m_unLose: %d \n", m_stPlayerInfo.m_unLose);
+	printf("  m_unRun: %d \n", m_stPlayerInfo.m_unRun);
+	printf("m_szPwd: %s \n", m_szPwd);
+	printf("m_bResultID: %d \n", m_bResultID);
+	printf("-----------------END------------------\n");
+}

@@ -23,7 +23,10 @@
 //不带参数，srcid为index值，dstid为srvfd
 #define MSGID_I2M_CLO_CONNECT   0xF002
 //不带参数，srcid为index值，dstid为srvfd
-#define MSGID_I2M_LOGIN     0x0001
+
+
+
+
 
 
 typedef struct m_stPlayerInfo
@@ -47,6 +50,8 @@ public:
     virtual int para2buf(char *buf) = 0;
     virtual void print() = 0;
 };*/
+
+#define MSGID_REQUESTLOGIN     		0x0001
 
 class CMsgRequestLoginPara//: public CMsgPara
 {
@@ -74,5 +79,26 @@ public:
     void print() ;
 };
 
+#define MSGID_REQUESTUSERINFO     	0x1001
+
+//请求用户信息 
+class CRequestUserInfoPara
+{
+public:
+	void print();
+	
+    char        m_szUserName[64];
+};
+
+//回复用户信息 
+class CResponseUserInfoPara
+{
+public:
+	void print();
+
+	PlayerInfo  m_stPlayerInfo;
+    char        m_szPwd[16];
+    int8_t      m_bResultID;      // //0成功，否则 失败 
+};
 
 #endif

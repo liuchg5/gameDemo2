@@ -75,8 +75,8 @@ void *thr_fn(void *argv)
         // rtn += recv(fd, &tmp, 4, 0); //读取后丢弃
         // fprintf(stdout, "Info: recv msglen = %d \n", rtn);
         // } while (rtn < 106);
-        rtn = recv(fd, buf, 112, 0); //读取后丢弃  // 被阻塞
-        if (rtn != 112)
+        rtn = recv(fd, buf, 104, 0); //读取后丢弃  // 被阻塞
+        if (rtn != 104)
         {
             fprintf(stdout, "Warn: recv n = %d \n", rtn);
             fprintf(stderr, "Warn: fd = %d  \n ", fd);

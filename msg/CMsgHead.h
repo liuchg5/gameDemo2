@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+#pragma pack(push) //保存对齐状态 
+#pragma pack(1)//设定为1字节对齐 
+
 class CMsgHead // 消息头  msglen是必须解开的  sizeof=18
 {
 public:
@@ -18,6 +21,6 @@ public:
 
 
 
-
+#pragma pack(pop)//恢复对齐状态
 
 #endif

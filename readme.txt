@@ -20,3 +20,17 @@ still cannot find why the whole process is very slow!!!
 if outsrv donot send msg by socket, 
 instead of that, if outsrv just handle msg without socket to dbsrv, then it fast!!!
 maybe the problem is "CSocketCli"!!!!!
+
+2013-07-11 Day
+find one problem: it is epoll_wait(), timeout should be 0 to immediate return, it just solve one connect slow problem.
+prepare do expriment for each layer return msg, now have the outsrv, midsrv two layers.
+simclient in the same vm:  (meanless: at the same machine)
+	about 200,000 msg per 5s (insrv) 40 connect
+	about 110,000 msg per 5s (insrv midsrv)  30 connect
+	about 5,000 msg per 5s (insrv midsrv outsrv) 3 connect
+Client(java) in host machine:
+	about 39499 msg per 5s (insrv) 50 connect id 30
+	about 36296 msg per 5s (insrv midsrv) 50 connect id 20
+	about 12037 msg per 5s (insrv midsrv outsrv) 50 connect (10 bottleneck) id 50
+mod "CMsgHead" "CMsgPara" #pragma pack(1)//设定为1字节对齐 
+add java client

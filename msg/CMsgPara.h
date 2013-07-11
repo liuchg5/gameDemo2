@@ -26,7 +26,8 @@
 
 
 
-
+#pragma pack(push) //保存对齐状态 
+#pragma pack(1)//设定为1字节对齐 
 
 
 typedef struct m_stPlayerInfo
@@ -100,5 +101,8 @@ public:
     char        m_szPwd[16];
     int8_t      m_bResultID;      // //0成功，否则 失败 
 };
+
+
+#pragma pack(pop)//恢复对齐状态
 
 #endif

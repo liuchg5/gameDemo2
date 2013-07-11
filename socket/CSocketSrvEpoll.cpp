@@ -118,6 +118,19 @@ int CSocketSrvEpoll::myclose()
     return 0;
 }
 
+int CSocketSrvEpoll::myclose(int index)
+{
+
+        if (socketlist.val[index].srvfd > 0)
+        {
+            close(socketlist.val[index].srvfd);
+            // TODO: 通知mainsrv
+        }
+
+    socketlist.erase(index);
+
+    return 0;
+}
 
 int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
 {
@@ -219,7 +232,7 @@ int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
                 {
                     if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)   // 没有发送完
                     {
-                        ;// no continue for maybe recv something
+                        continue;// 
                     }
                     else     // 出错
                     {
@@ -228,19 +241,20 @@ int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
                         //index = socketlist.find(socketfd);
                         socketlist.erase(index);
                         // 关闭socket
-                        close(socketfd);
+                        myclose(index);
                         // TODO: 通知mainsrv
                         set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
                         if (pshmQueueSingle->pushmsg(&tmpmsgbuf) <= 0)
                         {
                             fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue !!!!!!\n ");
                         }
-                        //continue;
+                        continue;
                     }
                 }
                 else if (n == 0)    // 一般不返回0
                 {
                     fprintf(stderr, "Err: CSocketSrvEpoll send() n == 0 \n");
+					continue;
                 }
                 else
                 {
@@ -255,6 +269,7 @@ int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
                         if (epoll_ctl(epfd, EPOLL_CTL_MOD, socketfd, &ev) < 0)
                             fprintf(stderr, "Err: CSocketSrvEpoll cannot mod fd to EPOLLIN\n");
                     }
+					continue;
                 }
             }
         }
@@ -430,3 +445,260 @@ int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
 }
 
 
+
+
+
+
+
+int CSocketSrvEpoll::my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle)
+{
+    int index;
+    int socketfd;
+    StMsgBuffer tmpmsgbuf;
+
+    int nfds = epoll_wait(epfd, events, EPOLL_SIZE, EPOLL_TIMEOUT);
+    if ( nfds < 0 )
+    {
+        fprintf(stderr, "Err: CSocketSrvEpoll epoll_wait() \n ");
+        fprintf(stderr, "Err: CSocketSrvEpoll errno = %d (%s) \n ", errno, strerror(errno));// system interupter ?
+        return -1;
+    }
+
+    for (int i = 0; i < nfds; ++i)
+    {
+        socketfd = events[i].data.fd;  // 获取fd
+        index = socketlist.find(socketfd); // 获取上下文的下标
+
+        if (index < 0)
+        {
+            fprintf(stderr, "Warn: CSocketSrvEpoll cannot find socketfd=>socketlist.val[] \n ");
+            continue;
+        }
+        CSocketInfo *psi = &(socketlist.val[index]);  // 获取上下文指针
+        StMsgBuffer *prmsg = &(psi->recvmsg);
+        StMsgBuffer *psmsg = &(psi->sendmsg);
+        // int recvflag = psi->recvflag;
+        // int sendflag = psi->sendflag;
+
+
+        //-------------------- 一个新socket用户连接到监听端口，建立新的连接
+        if (socketfd == listenfd)
+        {
+            // fprintf(stdout, "Info: CSocketSrvEpoll new conncet. \n");
+            // 建立新连接
+            clientAddrLen =  sizeof(struct sockaddr_in);
+            int connfd = accept(listenfd, (sockaddr *) &clientaddr, &clientAddrLen );
+            if (connfd < 0)
+            {
+                fprintf(stderr, "Err: CSocketSrvEpoll accept new connect failed. \n");
+                fprintf(stderr, "Err: CSocketSrvEpoll errno = %d (%s) \n ", errno, strerror(errno));
+                continue;
+            }
+
+            // 设为非阻塞
+            if (setnonblocking(connfd) != 0)
+            {
+                fprintf(stderr, "Err: CSocketSrvEpoll setnonblocking(connfd) \n ");
+                fprintf(stderr, "Err: CSocketSrvEpoll errno = %d (%s) \n ", errno, strerror(errno));
+            }
+
+            // 新连接的上下文
+            index = socketlist.idle();
+            if (index < 0)
+            {
+                fprintf(stderr, "Err: CSocketSrvEpoll socketlist is full!!! \n");
+            }
+            socketlist.val[index].srvfd = connfd;
+
+            // 注册新的连接
+            ev.data.fd = connfd; // 找到空闲的socketinfo
+            ev.events = EPOLLIN;
+
+            printf("Info: new connect fd = %d, index = %d \n", connfd, index);
+
+            if (epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) < 0)
+            {
+                fprintf(stderr, "Err: CSocketSrvEpoll epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) \n ");
+                fprintf(stderr, "Err: CSocketSrvEpoll errno = %d (%s) \n ", errno, strerror(errno));
+                continue;
+            }
+
+            set_MSGID_I2M_NEW_CONNECT(&tmpmsgbuf, index, connfd);
+            if (pshmQueueSingle->pushmsg(&tmpmsgbuf) <= 0)
+            {
+                fprintf(stderr, "Err: CSocketSrvEpoll new connect msg cannot push into queue !!!!!!\n ");
+            }
+            continue;
+        }
+
+        // 发送数据
+        if (events[i].events & EPOLLOUT)
+        {
+                uint32_t msglen = *(uint32_t *)psmsg->buf;
+                ssize_t n = send(socketfd, psmsg->buf + psmsg->n, msglen - psmsg->n, 0);
+                if (n < 0)
+                {
+                    if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)   // 没有发送完
+                    {
+                        continue;// 
+                    }
+                    else     // 出错
+                    {
+                        fprintf(stderr, "Err: CSocketSrvEpoll send() error happen \n");
+                        myclose(index);
+                        continue;
+                    }
+                }
+                else if (n == 0)    // 一般不返回0
+                {
+                    fprintf(stderr, "Err: CSocketSrvEpoll send() n == 0 \n");
+					continue;
+                }
+                else
+                {
+                    psmsg->n += n;
+                    if (psmsg->n == msglen)  // 发送完了
+                    {
+                        psmsg->n = 0;  // 复位
+
+                        ev.data.fd = socketfd;
+                        ev.events = EPOLLIN;
+                        if (epoll_ctl(epfd, EPOLL_CTL_MOD, socketfd, &ev) < 0)
+                            fprintf(stderr, "Err: CSocketSrvEpoll cannot mod fd to EPOLLIN\n");
+                    }
+					continue;
+                }
+            
+        }
+        // 进行读操作
+        else if (events[i].events & EPOLLIN)
+        {
+                if (prmsg->n < 4)  // 还未获取到msglen
+                {
+                    ssize_t n = recv(socketfd, prmsg->buf + prmsg->n, 4 - prmsg->n, 0); //
+                    if (n > 0)
+                    {
+                        prmsg->n += n;
+                    }
+                    else if (n < 0)
+                    {
+                        if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)  // 跳出，等待下次接收
+                        {
+                            continue;// here can just continue
+                        }
+                        else if (errno == ECONNRESET)     // 对方关闭了socket
+                        {
+                            fprintf(stdout, "Warn: CSocketSrvEpoll ECONNRESET \n ");
+                            myclose(index);
+                            continue;
+                        }
+                        else
+                        {
+                            fprintf(stdout, "Warn: CSocketSrvEpoll n < 0 but donot know why \n ");
+                            myclose(index);
+                            continue;
+                        }
+                    }
+                    else if (n == 0)    // 对端关闭
+                    {
+                        fprintf(stdout, "Warn: CSocketSrvEpoll recv n = 0 \n");
+                        myclose(index);
+                        continue;
+                    }
+                }
+                if (prmsg->n >= 4)  // 已经获取到msglen
+                {
+                    uint32_t msglen = *(uint32_t *)prmsg->buf;
+	// printf("msglen = %d", msglen);
+                    ssize_t n = recv(socketfd, prmsg->buf + prmsg->n, msglen - prmsg->n, 0); // 保证读取的是一个msg
+                    if (n > 0)
+                    {
+                        prmsg->n += n;
+                        if (prmsg->n >= msglen)  // 收取了一个完整msg
+                        {
+							prmsg->n = 0;
+							sta.check("my_epoll_wait_debug");
+							
+	// CMsgHead * phead2 = (CMsgHead *)prmsg->buf;
+
+	CMsgRequestLoginPara *pinpara =
+        (CMsgRequestLoginPara *)(prmsg->buf + sizeof(CMsgHead));	
+	// pinpara->print();
+							
+	CMsgResponseLoginPara *poutpara =
+        (CMsgResponseLoginPara *)(psmsg->buf + sizeof(CMsgHead));
+    // inpara.buf2para(pmsg->buf + sizeof(CMsgHead));
+    // pinpara->print();
+
+    poutpara->m_unUin = 1;
+    poutpara->m_unSessionID = 2;
+    poutpara->m_bResultID = 3;
+    strcpy(poutpara->m_stPlayerInfo.m_szUserName, "TestName");
+    // printf("pinpara->username %s\n", pinpara->username);
+    poutpara->m_stPlayerInfo.m_unUin = 1;
+    poutpara->m_stPlayerInfo.m_bySex = 0;
+    poutpara->m_stPlayerInfo.m_unLevel = 99;
+    poutpara->m_stPlayerInfo.m_unWin = 90;
+    poutpara->m_stPlayerInfo.m_unLose = 8;
+    poutpara->m_stPlayerInfo.m_unRun = 1;
+
+    CMsgHead * phead = (CMsgHead *)psmsg->buf;
+    phead->msglen = sizeof(CMsgHead) + sizeof(CMsgResponseLoginPara);
+    // printf("phead->msglen = %d\n", phead->msglen);
+    phead->msgid = MSGID_REQUESTLOGIN; //16位无符号整型，消息ID
+    phead->msgtype = Response;   //16位无符号整型，消息类型，当前主要有Requst、Response以及Notify三种类型
+    phead->msgseq = 1234567890;     //32位无符号整型，消息序列号
+    phead->srcfe = FE_GAMESVRD ;       //8位无符号整型，消息发送者类型，当前主要有FE_CLIENT、FE_GAMESVRD以及FE_DBSVRD三种
+    phead->dstfe = FE_CLIENT;     //8位无符号整型，消息接收者类型 同上
+    phead->srcid = socketfd;   //16位无符号整型，当客户端向游戏服务器发送消息时ScrID为SessionID
+    phead->dstid = 0;   //16位无符号整型，当游戏服务器向客户端发送消息是DstID为SessionID
+							
+							
+							
+							
+                            //设置发送
+							ev.data.fd = socketfd;
+							ev.events = EPOLLOUT;
+							if (epoll_ctl(epfd, EPOLL_CTL_MOD, ev.data.fd, &ev) < 0)
+							{
+								fprintf(stderr, "Err: popmsg_complex epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) \n ");
+								fprintf(stderr, "Err: popmsg_complex errno = %d (%s) \n ", errno, strerror(errno));
+								return -1;
+							}
+                        }
+                    }
+                    if (n < 0)
+                    {
+                        if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)  // 跳出，等待下次接收
+                        {
+                            continue;
+                        }
+                        else if (errno == ECONNRESET)     // 对方关闭了socket
+                        {
+                            fprintf(stdout, "Warn: CSocketSrvEpoll ECONNRESET \n");
+                            myclose(index);
+                            continue;
+                        }
+                        else
+                        {
+                            fprintf(stdout, "Warn: CSocketSrvEpoll recv n < 0 but donnot why \n");
+                            myclose(index);
+                            continue;
+                        }
+                    }
+                    else if (n == 0)    // 对端关闭
+                    {
+                        fprintf(stdout, "Warn: CSocketSrvEpoll recv n = 0 \n");
+                        // 关闭socket
+                        myclose(index);
+                        continue;
+                    }
+
+                }
+            
+            }
+
+        
+    }
+    return 0;
+}

@@ -46,8 +46,8 @@ public:
         if (status == 1)
         {
             l_count++;
-            if (l_count % 200 == 0) // for performance
-            {
+            // if (l_count % 200 == 0) // for performance
+            // {
                 gettimeofday(&st_end, NULL);
                 long timeuse = 1000000 * ( st_end.tv_sec - st_start.tv_sec ) + st_end.tv_usec - st_start.tv_usec;
                 if (timeuse >= l_interval)  // 到了时间间隔
@@ -58,7 +58,7 @@ public:
                     gettimeofday(&st_start, NULL);
                     return 0; //到了时间间隔
                 }
-            }
+            // }
             return 1;
         }
         else if (status == 0)
@@ -84,6 +84,8 @@ public:
                     str, lval, (ltimeuse / 1000) );
         }
     }
+	
+	
 
 
 

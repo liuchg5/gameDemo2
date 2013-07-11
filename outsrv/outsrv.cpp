@@ -53,7 +53,12 @@ int main(int argc, char ** argv)
 	
 	while (1)
     {
-        if (cli.recv_and_send(&recvQ, &sendQ) < 0)
+        // if (cli.recv_and_send(&recvQ, &sendQ) < 0)
+		// {
+			// fprintf(stderr, "Err: cli.recv_and_send() failed! \n");
+			// return -1;
+		// }
+		if (cli.recv_and_send_debug(&recvQ, &sendQ) < 0)  //debug
 		{
 			fprintf(stderr, "Err: cli.recv_and_send() failed! \n");
 			return -1;

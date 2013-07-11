@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 		port = 10203;
 	}
 
-    CSocketSrvEpoll srv(GLOBAL_EPOLL_SIZE, 1000, 500);//epollsize epolltimeout listenq
+    CSocketSrvEpoll srv(GLOBAL_EPOLL_SIZE, GLOBAL_EPOLL_TIMEOUT, GLOBAL_EPOLL_LISTENQ);//epollsize epolltimeout listenq
     srv.open(tmp, port);
 
     CShmQueueSingle sinq;
@@ -54,5 +54,8 @@ int main(int argc, char **argv)
         mulq.popmsg_complex(srv.epfd, &(srv.socketlist));
         srv.my_epoll_wait(&sinq);
         usleep(IN_SLEEP_TIME);
+		
+		// srv.my_epoll_wait_debug(&sinq);;//debug
+		// usleep(IN_SLEEP_TIME);
     }
 }

@@ -7,13 +7,19 @@
 #include <unistd.h>
 #include <time.h>
 
-#define GLOBAL_EPOLL_SIZE 4000
+#define GLOBAL_EPOLL_SIZE 		4000
+#define GLOBAL_EPOLL_TIMEOUT 	0
+#define GLOBAL_EPOLL_LISTENQ 	500
 
-#define IN_SLEEP_TIME	100
-#define MID_SLEEP_TIME	100
-#define OUT_SLEEP_TIME	10
+#define IN_SLEEP_TIME	1
+#define MID_SLEEP_TIME	1
+#define OUT_SLEEP_TIME	1
 
-
+#define GLOBAL_EPOLL_SIZE_DB		5
+#define GLOBAL_EPOLL_TIMEOUT_DB 	1
+#define GLOBAL_EPOLL_LISTENQ_DB 	5
+#define IN_SLEEP_TIME_DB	1
+#define MID_SLEEP_TIME_DB	1
 
 
 // 设为非阻塞socket函数

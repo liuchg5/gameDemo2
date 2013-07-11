@@ -6,7 +6,7 @@
 #include "../common/common.h"
 #include "CGMEngine.h"
 
-#include "../common/CStatistics.h"
+// #include "../common/CStatistics.h"
 
 
 
@@ -60,13 +60,12 @@ int main(int argc, char **argv)
 		
 		while (sinq_from_out.popmsg(&msgbuf) > 0)
 		{
-            // printf("sinq_from_out.popmsg(&msgbuf) \n");
 			gme.handle_db(&msgbuf, &mulq, &sinq_to_out);
 		}
 
         // while (sinq.popmsg(&msgbuf) > 0)   // debug!!!
         // {
-        //     gme.handle_debug(&msgbuf, &mulq);
+            // gme.handle_debug(&msgbuf, &mulq);
         // }
 
 

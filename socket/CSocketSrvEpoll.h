@@ -18,6 +18,7 @@
 #include "CSocketList.h"
 
 #include "../common/common.h"
+#include "../common/CStatistics.h"
 #include "../queue/CShmQueueSingle.h"
 
 class CSocketSrvEpoll
@@ -36,6 +37,9 @@ public:
     struct sockaddr_in serveraddr;
     CSocketList socketlist;
 	
+	CStatistics sta;
+	
+	
 
 public:
 	CSocketSrvEpoll(int epoll_size, int epoll_timeout, int listenq);
@@ -43,8 +47,11 @@ public:
 	
 	int open(const char * serv_addr, int port_number);
 	int myclose();
+	int myclose(int index);
 
 	int my_epoll_wait(CShmQueueSingle * pshmQueueSingle);
+	
+	int my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle);
 
 };
 

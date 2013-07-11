@@ -28,11 +28,11 @@ int main(int argc, char **argv)
     CShmQueueMulti mulq;
     mulq.crt(1024 * 1024 * 1, 6666);
     mulq.get();
-    mulq.init(10);
+    mulq.init(GLOBAL_EPOLL_SIZE_DB);
     mulq.clear();
 	
 
-    CDBEngine dbe(10);
+    CDBEngine dbe(GLOBAL_EPOLL_SIZE_DB);
 
 
     StMsgBuffer msgbuf;
@@ -44,6 +44,6 @@ int main(int argc, char **argv)
 			dbe.handle(&msgbuf, &mulq);
 		}
 
-        usleep(MID_SLEEP_TIME);
+        usleep(MID_SLEEP_TIME_DB);
     }
 }

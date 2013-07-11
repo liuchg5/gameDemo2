@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 		port = 12345;
 	}
 
-    CSocketSrvEpoll srv(10, 10, 5);//epollsize epolltimeout listenq
+    CSocketSrvEpoll srv(GLOBAL_EPOLL_SIZE_DB, GLOBAL_EPOLL_TIMEOUT_DB, GLOBAL_EPOLL_LISTENQ_DB);//epollsize epolltimeout listenq
     srv.open(tmp, port);
 
     CShmQueueSingle sinq;
@@ -45,13 +45,13 @@ int main(int argc, char **argv)
     CShmQueueMulti mulq;
     mulq.crt(1024 * 1024 * 1, 6666);
     mulq.get();
-    mulq.init(10);
+    mulq.init(GLOBAL_EPOLL_SIZE_DB);
     mulq.clear();
 
     while (1)
     {
         mulq.popmsg_complex(srv.epfd, &(srv.socketlist));
         srv.my_epoll_wait(&sinq);
-        usleep(IN_SLEEP_TIME);
+        usleep(IN_SLEEP_TIME_DB);
     }
 }

@@ -8,7 +8,8 @@
 
 // #include "../common/CStatistics.h"
 
-
+// debug
+int test_CShmQueueSingle(CShmQueueSingle * pqto, CShmQueueSingle * pqfrom);
 
 
 int main(int argc, char **argv)
@@ -67,9 +68,55 @@ int main(int argc, char **argv)
         // {
             // gme.handle_debug(&msgbuf, &mulq);
         // }
-
-
+		
+		// test single queue
+		// if (test_CShmQueueSingle(&sinq_to_out, &sinq_from_out) < 0)  // debug!!!
+		// {
+			// printf("Err: test end \n");
+			// return -1;
+		// }
 
         usleep(MID_SLEEP_TIME);
     }
+}
+
+int test_CShmQueueSingle(CShmQueueSingle * pqto, CShmQueueSingle * pqfrom)
+{
+	StMsgBuffer tmpmsgbuf, tmpmsgbuf2;
+    tmpmsgbuf.n = 0;
+
+    CMsgHead *phead;
+
+    CRequestUserInfoPara *poutpara =
+        (CRequestUserInfoPara *)(tmpmsgbuf.buf + sizeof(CMsgHead));
+
+    strcpy(poutpara->m_szUserName, "TestName");
+
+    phead = (CMsgHead *)tmpmsgbuf.buf;
+    phead->msglen = sizeof(CMsgHead) + sizeof(CMsgResponseLoginPara);
+    phead->msgid = MSGID_REQUESTUSERINFO; //16位无符号整型，消息ID
+    phead->msgtype = Request;   //16位无符号整型，消息类型，当前主要有Request、Response以及Notify三种类型
+    phead->msgseq = 1234567890;     //32位无符号整型，消息序列号
+    phead->srcfe = FE_GAMESVRD ;       //8位无符号整型，消息发送者类型，当前主要有FE_CLIENT、FE_GAMESVRD以及FE_DBSVRD三种
+    phead->dstfe = FE_DBSVRD;     //8位无符号整型，消息接收者类型 同上
+    phead->srcid = 0;   //16位无符号整型，当客户端向游戏服务器发送消息时ScrID为SessionID
+    phead->dstid = 0;   //16位无符号整型，当游戏服务器向客户端发送消息是DstID为SessionID
+
+	for (int i=0; i<100; ++i)
+	{
+		if (pqto->pushmsg(&tmpmsgbuf) <= 0)
+		{
+			printf("pqto->pushmsg() <= 0 \n");
+			return -1;
+		}
+	}
+	for (int i=0; i<100; ++i)
+	{
+		while (pqfrom->popmsg(&tmpmsgbuf2) <= 0)
+		{
+			// printf("pqfrom->popmsg() <= 0 \n");
+			// return -1;
+		}
+	}
+	return 0;
 }

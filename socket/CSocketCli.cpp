@@ -288,7 +288,7 @@ int CSocketCli::recv_and_send_debug(CShmQueueSingle *precvQ, CShmQueueSingle *ps
     //一次处理完
 
 
-    if (psendQ->popmsg(&sendmsg) > 0)
+    while (psendQ->popmsg(&sendmsg) > 0)
     {
 
     CMsgHead *phead = (CMsgHead *)sendmsg.buf;
@@ -338,10 +338,7 @@ int CSocketCli::recv_and_send_debug(CShmQueueSingle *precvQ, CShmQueueSingle *ps
         }
 
     }
-    else
-    {
-        ;
-    }
+
 
     return 0;
 }

@@ -96,14 +96,15 @@ int CDBEngine::handle_RequestUserInfo(StMsgBuffer * pmsg, CShmQueueMulti * pqm)
 
     if (map.fnd(&index, dstid) < 0)
     {
-        fprintf(stderr, "Err: map.fnd() return neg val !!\n" );
+        fprintf(stderr, "Err: CDBEngine map.fnd() return neg val !!\n" );
+		fprintf(stderr, "Err: CDBEngine dstid = %d !!\n", dstid );
         return -1;
     }
 
     // printf("CDBEngine::    msglen = %d \n", phead->msglen);
     if (pqm->pushmsg(index, &tmpmsgbuf) < 0)
     {
-        fprintf(stderr, "Err: pqm->pushmsg() return neg val !!!\n");
+        fprintf(stderr, "Err: CDBEngine pqm->pushmsg() return neg val !!!\n");
         return -1;
     }
     return 0;

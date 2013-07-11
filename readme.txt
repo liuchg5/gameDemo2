@@ -34,3 +34,16 @@ Client(java) in host machine:
 	about 12037 msg per 5s (insrv midsrv outsrv) 50 connect (10 bottleneck) id 50
 mod "CMsgHead" "CMsgPara" #pragma pack(1)//设定为1字节对齐 
 add java client
+
+==== 2013-07-11 Night ====
+prepare test Single Queue, mod midsrv and outsrv
+result: Single Queue here just 5000 msg per 5s (10000 for dual queue) 
+Because handle one msg from queue then sleep() so it is so slow...
+if handle all msg in queue then will faster!!! 
+update:
+Client(java) in host machine:
+	about 39499 msg per 5s (insrv) 50 connect id 30
+	about 36296 msg per 5s (insrv midsrv) 50 connect id 20
+	about 41330 msg per 5s (insrv midsrv outsrv) 50 connect (40 bottleneck) id 20
+but using dbsrv it will be 5000 msg per 5s 
+because one connect EPOLL just can handle!!!

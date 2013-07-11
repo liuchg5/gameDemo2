@@ -609,7 +609,7 @@ int CSocketSrvEpoll::my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle)
                 if (prmsg->n >= 4)  // 已经获取到msglen
                 {
                     uint32_t msglen = *(uint32_t *)prmsg->buf;
-	// printf("msglen = %d", msglen);
+
                     ssize_t n = recv(socketfd, prmsg->buf + prmsg->n, msglen - prmsg->n, 0); // 保证读取的是一个msg
                     if (n > 0)
                     {
@@ -619,22 +619,21 @@ int CSocketSrvEpoll::my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle)
 							prmsg->n = 0;
 							sta.check("my_epoll_wait_debug");
 							
-	// CMsgHead * phead2 = (CMsgHead *)prmsg->buf;
+
 
 	CMsgRequestLoginPara *pinpara =
         (CMsgRequestLoginPara *)(prmsg->buf + sizeof(CMsgHead));	
-	// pinpara->print();
+
 							
 	CMsgResponseLoginPara *poutpara =
         (CMsgResponseLoginPara *)(psmsg->buf + sizeof(CMsgHead));
-    // inpara.buf2para(pmsg->buf + sizeof(CMsgHead));
-    // pinpara->print();
+
 
     poutpara->m_unUin = 1;
     poutpara->m_unSessionID = 2;
     poutpara->m_bResultID = 3;
     strcpy(poutpara->m_stPlayerInfo.m_szUserName, "TestName");
-    // printf("pinpara->username %s\n", pinpara->username);
+
     poutpara->m_stPlayerInfo.m_unUin = 1;
     poutpara->m_stPlayerInfo.m_bySex = 0;
     poutpara->m_stPlayerInfo.m_unLevel = 99;
@@ -644,7 +643,7 @@ int CSocketSrvEpoll::my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle)
 
     CMsgHead * phead = (CMsgHead *)psmsg->buf;
     phead->msglen = sizeof(CMsgHead) + sizeof(CMsgResponseLoginPara);
-    // printf("phead->msglen = %d\n", phead->msglen);
+
     phead->msgid = MSGID_REQUESTLOGIN; //16位无符号整型，消息ID
     phead->msgtype = Response;   //16位无符号整型，消息类型，当前主要有Requst、Response以及Notify三种类型
     phead->msgseq = 1234567890;     //32位无符号整型，消息序列号
@@ -656,10 +655,10 @@ int CSocketSrvEpoll::my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle)
 							
 							
 							
-                            //设置发送
-							ev.data.fd = socketfd;
+                            
+							ev.data.fd = socketfd;  
 							ev.events = EPOLLOUT;
-							if (epoll_ctl(epfd, EPOLL_CTL_MOD, ev.data.fd, &ev) < 0)
+							if (epoll_ctl(epfd, EPOLL_CTL_MOD, ev.data.fd, &ev) < 0)  // 设置发送
 							{
 								fprintf(stderr, "Err: popmsg_complex epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) \n ");
 								fprintf(stderr, "Err: popmsg_complex errno = %d (%s) \n ", errno, strerror(errno));

@@ -24,14 +24,18 @@ int CDBEngine::handle(StMsgBuffer * pmsg, CShmQueueMulti * pqm)
     case MSGID_I2M_NEW_CONNECT:
         if (map.reg(srcid, dstid) < 0)
         {
-            fprintf(stderr, "Err: map.reg() return neg val !!!\n");
+            fprintf(stderr, "Err: CDBEngine map.reg() return neg val !!!\n");
+			fprintf(stderr, "Err: CDBEngine index = %d, srvfd = %d !!\n", srcid, dstid);
+			return -1;
         }
         break;
 
     case MSGID_I2M_CLO_CONNECT:
         if (map.del(srcid) < 0)
         {
-            fprintf(stderr, "Err: map.del() return neg val !!\n");
+            fprintf(stderr, "Err: CDBEngine map.del() return neg val !!\n");
+			fprintf(stderr, "Err: CDBEngine index = %d !!\n", srcid);
+			return -1;
         }
         break;
 
@@ -41,6 +45,7 @@ int CDBEngine::handle(StMsgBuffer * pmsg, CShmQueueMulti * pqm)
 		
     default:
 		fprintf(stderr, "Err: CDBEngine::handle() wrong msgid !!\n");
+		fprintf(stderr, "Err: CDBEngine msgid = %d !!\n", phead->msgid);
         return -1;
         break;
     }

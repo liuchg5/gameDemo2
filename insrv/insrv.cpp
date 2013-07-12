@@ -38,24 +38,32 @@ int main(int argc, char **argv)
     srv.open(tmp, port);
 
     CShmQueueSingle sinq;
-    sinq.crt(1024 * 1024 * 4, 1111);
+    sinq.crt(SQ1_SIZE, SQ1_FTOLK);  
     sinq.get();
     sinq.init();
     sinq.clear();
 
     CShmQueueMulti mulq;
-    mulq.crt(1024 * 1024 * 2, 2222);
+    mulq.crt(MQ1_SIZE, MQ1_FTOLK);
     mulq.get();
     mulq.init(GLOBAL_EPOLL_SIZE);
     mulq.clear();
 
     while (1)
     {
-        mulq.popmsg_complex(srv.epfd, &(srv.socketlist));
-        srv.my_epoll_wait(&sinq);
-        usleep(IN_SLEEP_TIME);
+        
+        if (srv.my_epoll_wait(&sinq, &mulq) < 0)
+		{
+			fprintf(stderr, "Err: insrv: srv.my_epoll_wait(&sinq, &mulq) < 0 \n");
+			exit(-1);
+		}
 		
-		// srv.my_epoll_wait_debug(&sinq);;//debug
+		// srv.my_epoll_wait_debug_nosend(&sinq, &mulq);  //debug
+		
+        usleep(IN_SLEEP_TIME);
+		// printf("usleep(IN_SLEEP_TIME); \n");
+		
+		// srv.my_epoll_wait_debug(&sinq);;//debug have problem
 		// usleep(IN_SLEEP_TIME);
     }
 }

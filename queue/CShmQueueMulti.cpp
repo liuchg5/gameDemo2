@@ -35,6 +35,7 @@ int CShmQueueMulti::crt(int size, int ftolk_val)
     {
         fprintf(stderr, "Err: CShmQueueMulti create shared memory \n");
         fprintf(stderr, "Err: CShmQueueMulti errno = %d (%s) \n", errno, strerror(errno));
+        fprintf(stderr, "Err: CShmQueueMulti SHM_SIZE = %d MB \n", SHM_SIZE/1024/1024);
         return shmid;
     }
     fprintf(stdout, "Info: CShmQueueMulti create shared memory \n");
@@ -82,9 +83,9 @@ int CShmQueueMulti::det()
 
 void CShmQueueMulti::init(int epoll_size)
 {
-    EPOLL_SIZE = epoll_size;
-    size = SHM_SIZE / epoll_size;
-    for (int i = 0; i < EPOLL_SIZE; ++i)
+    EPOLL_SIZE = epoll_size +1;  // 0 不用
+    size = SHM_SIZE / EPOLL_SIZE;
+    for (int i = 1; i < EPOLL_SIZE; ++i)
     {
         pq = (CQueue *)(base + i * size);
         pmsgbase = (char *)pq + sizeof(CQueue);
@@ -93,7 +94,7 @@ void CShmQueueMulti::init(int epoll_size)
 }
 void CShmQueueMulti::clear()
 {
-    for (int i = 0; i < EPOLL_SIZE; ++i)
+    for (int i = 1; i < EPOLL_SIZE; ++i)
     {
         pq = (CQueue *)(base + i * size);
         pq->clear();
@@ -101,7 +102,6 @@ void CShmQueueMulti::clear()
 }
 void CShmQueueMulti::clear(int index)
 {
-    index--;
     pq = (CQueue *)(base + index * size);
     pmsgbase = (char *)pq + sizeof(CQueue);
     pq->clear();
@@ -124,7 +124,7 @@ int CShmQueueMulti::popmsg_complex(int epfd, CSocketList *plist)
     // index的同步走msg的方式，这里假设就是一一对应
     struct epoll_event ev;
     int n = 0;
-    for (int i = 0; i < EPOLL_SIZE; ++i)
+    for (int i = 1; i < EPOLL_SIZE; ++i)
     {
         // 取出对应的值
         pq = (CQueue *)(base + i * size);
@@ -133,26 +133,71 @@ int CShmQueueMulti::popmsg_complex(int epfd, CSocketList *plist)
         if (pq->top_just(pmsgbase) <= 0)
             continue;
 
+		// 判断srvfd是否-1  !!!!
+		if (plist->val[i].srvfd < 0)
+		{
+			clear(i);
+			continue;
+		}
         // 判断socketinfo是否还可以写入
-        if (plist->val[i + 1].sendflag == 1)
+        if (plist->val[i].sendflag == 1)
         {
-            fprintf(stderr, "Err: CShmQueueMulti::pop_complex() sendflag is 1 !!!!\n");
+            fprintf(stderr, "Err: CShmQueueMulti::pop_complex() sendflag is already 1 !!!!\n");
+			//
+			// these codes are not necessary, but it just print the above msg continually!!! maybe a Err !!!
+			ev.data.fd = plist->val[i].srvfd;
+			ev.events = EPOLLOUT | EPOLLET;
+			if (epoll_ctl(epfd, EPOLL_CTL_MOD, ev.data.fd, &ev) < 0)
+			{
+				fprintf(stderr, "Err: CShmQueueMulti popmsg_complex epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) \n ");
+				fprintf(stderr, "Err: CShmQueueMulti popmsg_complex errno = %d (%s) \n ", errno, strerror(errno));
+				fprintf(stderr, "Err: CShmQueueMulti popmsg_complex epfd = %d  \n ", epfd);
+				fprintf(stderr, "Err: CShmQueueMulti popmsg_complex ev.data.fd = %d   \n ", ev.data.fd);
+				return -1;
+			}
             continue;
         }
         //
-        pq->pop(pmsgbase, plist->val[i + 1].sendmsg.buf);
-        plist->val[i + 1].sendmsg.n = 0;
-        plist->val[i + 1].sendflag = 1;
+        pq->pop(pmsgbase, plist->val[i].sendmsg.buf);
+        plist->val[i].sendmsg.n = 0;
+        plist->val[i].sendflag = 1;
         //
-        ev.data.fd = plist->val[i + 1].srvfd;
-        ev.events = EPOLLOUT;
+        ev.data.fd = plist->val[i].srvfd;
+        ev.events = EPOLLOUT | EPOLLET;
         if (epoll_ctl(epfd, EPOLL_CTL_MOD, ev.data.fd, &ev) < 0)
         {
-            fprintf(stderr, "Err: popmsg_complex epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) \n ");
-            fprintf(stderr, "Err: popmsg_complex errno = %d (%s) \n ", errno, strerror(errno));
+            fprintf(stderr, "Err: CShmQueueMulti popmsg_complex epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) \n ");
+            fprintf(stderr, "Err: CShmQueueMulti popmsg_complex errno = %d (%s) \n ", errno, strerror(errno));
+			fprintf(stderr, "Err: CShmQueueMulti popmsg_complex epfd = %d  \n ", epfd);
+			fprintf(stderr, "Err: CShmQueueMulti popmsg_complex ev.data.fd = %d   \n ", ev.data.fd);
             return -1;
         }
         //
+        n++;
+    }
+    return n;
+}
+
+
+
+int CShmQueueMulti::popmsg_complex_noset_epollout(int epfd, CSocketList *plist)
+{
+    // index的同步走msg的方式，这里假设就是一一对应
+    struct epoll_event ev;
+    int n = 0;
+	StMsgBuffer msgbuf;
+    for (int i = 1; i < EPOLL_SIZE; ++i)
+    {
+        // 取出对应的值
+        pq = (CQueue *)(base + i * size);
+        pmsgbase = (char *)pq + sizeof(CQueue);
+		
+        // 清空通道
+		while ( (pq->pop(pmsgbase, msgbuf.buf)) > 0 )
+		{
+		
+		}
+        
         n++;
     }
     return n;

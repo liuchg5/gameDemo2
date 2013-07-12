@@ -61,7 +61,7 @@ int CSocketSrvEpoll::open(const char *serv_addr, int port_number)
 
     // 注册epoll事件
     ev.data.fd = listenfd;
-    ev.events = EPOLLIN;//响应读事件
+    ev.events = EPOLLIN ;//响应读事件
     ret = epoll_ctl(epfd, EPOLL_CTL_ADD, listenfd, &ev);
     if (ret < 0)
     {
@@ -118,7 +118,7 @@ int CSocketSrvEpoll::myclose()
     return 0;
 }
 
-int CSocketSrvEpoll::myclose(int index)
+int CSocketSrvEpoll::myclose(int index) 
 {
 
         if (socketlist.val[index].srvfd > 0)
@@ -132,12 +132,371 @@ int CSocketSrvEpoll::myclose(int index)
     return 0;
 }
 
-int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
+#define RECV_WAIT_TIME 1000
+int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle * pqs, CShmQueueMulti * pqm)
 {
     int index;
     int socketfd;
     StMsgBuffer tmpmsgbuf;
+	
+	static long recv_wait_time = 0;//debug
+	
+	
+	// set EPOLLOUT first
+	// if (pqm->popmsg_complex(epfd, &(socketlist)) < 0)
+	// {
+		// fprintf(stderr, "Err: CSocketSrvEpoll pqm->popmsg_complex() \n ");
+		// return -1;
+	// }
+	
+	pqm->popmsg_complex_noset_epollout(epfd, &(socketlist));  // debug !!!
+	
+	// handle 
+    int nfds = epoll_wait(epfd, events, EPOLL_SIZE, EPOLL_TIMEOUT);
+    if ( nfds < 0 )
+    {
+        fprintf(stderr, "Err: CSocketSrvEpoll epoll_wait() \n ");
+        fprintf(stderr, "Err: CSocketSrvEpoll errno = %d (%s) \n ", errno, strerror(errno));// system interupter ?
+        // return -1;  // for system interrupt so donot return
+    }
 
+    for (int i = 0; i < nfds; ++i)
+    {
+        socketfd = events[i].data.fd;  // 获取fd
+        index = socketlist.find(socketfd); // 获取上下文的下标
+
+        if (index < 0)
+        {
+            fprintf(stderr, "Err: CSocketSrvEpoll cannot find socketfd=>socketlist.val[] \n ");
+            return -1;
+        }
+        CSocketInfo *psi = &(socketlist.val[index]);  // 获取上下文指针
+        StMsgBuffer *prmsg = &(psi->recvmsg);
+        StMsgBuffer *psmsg = &(psi->sendmsg);
+        // int recvflag = psi->recvflag;
+        // int sendflag = psi->sendflag;
+
+
+        //-------------------- 一个新socket用户连接到监听端口，建立新的连接
+        if (socketfd == listenfd)
+        {
+            // fprintf(stdout, "Info: CSocketSrvEpoll new conncet. \n");
+            // 建立新连接
+            clientAddrLen =  sizeof(struct sockaddr_in);
+			int connfd;
+            
+			// while ((connfd = accept(listenfd, (sockaddr *) &clientaddr, &clientAddrLen )) > 0)
+			// {
+            connfd = accept(listenfd, (sockaddr *) &clientaddr, &clientAddrLen );
+			if (connfd < 0)
+            {
+                fprintf(stderr, "Err: CSocketSrvEpoll accept new connect failed. \n");
+                fprintf(stderr, "Err: CSocketSrvEpoll errno = %d (%s) \n ", errno, strerror(errno));
+                return -1; 
+				continue;
+            }
+			
+            // 设为非阻塞
+            if (setnonblocking(connfd) != 0)
+            {
+                fprintf(stderr, "Err: CSocketSrvEpoll setnonblocking(connfd) \n ");
+                fprintf(stderr, "Err: CSocketSrvEpoll errno = %d (%s) \n ", errno, strerror(errno));
+				return -1;
+            }
+
+            // 新连接的上下文
+            index = socketlist.idle();
+            if (index < 0)
+            {
+                fprintf(stderr, "Err: CSocketSrvEpoll socketlist is full!!! \n");
+				return -1;
+            }
+            socketlist.val[index].srvfd = connfd;
+
+            // 注册新的连接
+            ev.data.fd = connfd; // 找到空闲的socketinfo
+            ev.events = EPOLLIN | EPOLLET;
+
+            printf("Info: new connect fd = %d, index = %d \n", connfd, index);
+
+            if (epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) < 0)
+            {
+                fprintf(stderr, "Err: CSocketSrvEpoll epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) \n ");
+                fprintf(stderr, "Err: CSocketSrvEpoll errno = %d (%s) \n ", errno, strerror(errno));
+                return -1;
+				//continue;
+            }
+
+            set_MSGID_I2M_NEW_CONNECT(&tmpmsgbuf, index, connfd);
+            if (pqs->pushmsg(&tmpmsgbuf) <= 0)
+            {
+                fprintf(stderr, "Err: CSocketSrvEpoll new connect msg cannot push, queue full !!!!!!\n ");
+				return -1;
+            }
+            
+			// } // end while ( accept() )
+			continue;
+		}
+
+        
+// ------------------- 读取数据
+        if (events[i].events & EPOLLIN)
+        {
+            if (psi->recvflag == 1)  // 已经收取了一个msg，还未取走
+            {
+                // TODO 压入共享内存区
+                CMsgHead *phead = (CMsgHead *)prmsg;
+                phead->dstid = socketfd; // read需修改dstid
+                if (pqs->pushmsg(prmsg) >= 0)
+                {
+                    prmsg->n = 0;
+                    psi->recvflag = 0;
+                }
+                else
+                {
+                    fprintf(stderr, "Err: CSocketSrvEpoll EPOLLIN but queue is full < 0 !!!!!!\n ");
+					return -1;
+                }
+            }
+            while (psi->recvflag == 0)
+            {
+                if (prmsg->n < 4)  // 还未获取到msglen
+                {
+                    ssize_t n = recv(socketfd, prmsg->buf + prmsg->n, 4 - prmsg->n, 0); //
+                    if (n > 0)
+                    {
+                        prmsg->n += n;
+                    }
+                    else if (n < 0)
+                    {
+                        if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)  // 跳出，等待下次接收
+                        {
+							if (recv_wait_time++ > RECV_WAIT_TIME){
+								fprintf(stderr, "Err:CSocketSrvEpoll recv wait %d times !! \n", RECV_WAIT_TIME);
+								recv_wait_time = 0;
+							}
+                            break;// 
+                        }
+                        else if (errno == ECONNRESET)     // 对方关闭了socket
+                        {
+                            fprintf(stdout, "Warn: CSocketSrvEpoll ECONNRESET \n ");
+                            myclose(index);
+                            // TODO: 通知mainsrv
+                            set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
+                            if (pqs->pushmsg(&tmpmsgbuf) <= 0)
+                            {
+                                fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue, full !!!!!!\n ");
+								return -1;
+                            }
+                            break;
+                        }
+                        else
+                        {
+                            fprintf(stdout, "Warn: CSocketSrvEpoll n < 0 but donot know why \n ");
+                            myclose(index);
+                            // TODO: 通知mainsrv
+                            set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
+                            if (pqs->pushmsg(&tmpmsgbuf) <= 0)
+                            {
+                                fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue, full !!!!!!\n ");
+								return -1;
+                            }
+                            break;
+                        }
+                    }
+                    else if (n == 0)    // 对端关闭
+                    {
+                        fprintf(stdout, "Warn: CSocketSrvEpoll recv n = 0 \n");
+                        myclose(index);
+                        // TODO: 通知mainsrv
+                        set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
+                        if (pqs->pushmsg(&tmpmsgbuf) <= 0)
+                        {
+                            fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue, full !!!!!!\n ");
+							return -1;
+                        }
+                        break;
+                    }
+                }
+                if (prmsg->n >= 4)  // 已经获取到msglen
+                {
+                    uint32_t msglen = *(uint32_t *)prmsg->buf;
+                    ssize_t n = recv(socketfd, prmsg->buf + prmsg->n, msglen - prmsg->n, 0); // 保证读取的是一个msg
+                    if (n > 0)
+                    {
+                        prmsg->n += n;
+                        if (prmsg->n == msglen)  // 收取了一个完整msg
+                        {
+                            CMsgHead *phead = (CMsgHead *)prmsg;
+                            phead->dstid = socketfd; // read需修改dstid
+                            // TODO 压入共享内存区
+                            if (pqs->pushmsg(prmsg) >= 0)
+                            {
+                                prmsg->n = 0;
+                                psi->recvflag = 0;
+                            }
+                            else
+                            {
+                                fprintf(stderr, "Err: CSocketSrvEpoll pushmsg() failed because it's full !!!!\n");
+								return -1;
+                                // 如果压入共享内存区失败，则先保留在socketinfo的msg缓冲区
+                                psi->recvflag = 1; //只是置标志位而已，TODO 这里有问题，应该通过ShmQueue来取走
+                            }
+                        }
+                    }
+                    if (n < 0)
+                    {
+                        if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)  // 跳出，等待下次接收
+                        {
+							if (recv_wait_time++ > RECV_WAIT_TIME){
+								fprintf(stderr, "Err:CSocketSrvEpoll recv wait %d times !! \n", RECV_WAIT_TIME);
+								recv_wait_time = 0;
+							}
+                            break;
+                        }
+                        else if (errno == ECONNRESET)     // 对方关闭了socket
+                        {
+                            fprintf(stdout, "Warn: CSocketSrvEpoll ECONNRESET \n");
+                            myclose(index);
+                            // TODO: 通知mainsrv
+                            set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
+                            if (pqs->pushmsg(&tmpmsgbuf) <= 0)
+                            {
+                                fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue !!!!!!\n ");
+								return -1;
+                            }
+                            break;
+                        }
+                        else
+                        {
+                            fprintf(stdout, "Warn: CSocketSrvEpoll recv n < 0 but donnot why \n");
+                            myclose(index);
+                            // TODO: 通知mainsrv
+                            set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
+                            if (pqs->pushmsg(&tmpmsgbuf) <= 0)
+                            {
+                                fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue !!!!!!\n ");
+								return -1;
+                            }
+                            break;
+                        }
+                    }
+                    else if (n == 0)    // 对端关闭
+                    {
+                        fprintf(stdout, "Warn: CSocketSrvEpoll recv n = 0 \n");
+                        myclose(index);
+                        // TODO: 通知mainsrv
+                        set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
+                        if (pqs->pushmsg(&tmpmsgbuf) <= 0)
+                        {
+                            fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue !!!!!!\n ");
+							return -1;
+                        }
+                        break;
+                    }
+
+                }  // if (prmsg->n >= 4)
+            
+            } // while (psi->recvflag == 0)
+
+        }
+// ------------------------ 发送数据
+        if (events[i].events & EPOLLOUT)
+        {
+            if (psi->sendflag == 0)  // 没有东西要发送
+            {
+                fprintf(stderr, "Warn: sendflag == 0 but act EPOLLOUT \n");
+                ev.data.fd = socketfd;
+                ev.events = EPOLLIN | EPOLLET;
+                if (epoll_ctl(epfd, EPOLL_CTL_MOD, socketfd, &ev) < 0)
+				{
+                    fprintf(stderr, "Err: CSocketSrvEpoll cannot mod fd to EPOLLIN\n");
+                    fprintf(stderr, "Err: CSocketSrvEpoll epfd = %d\n", epfd);
+                    fprintf(stderr, "Err: CSocketSrvEpoll srvfd = %d\n", socketfd);
+					return -1;
+				}
+            }
+            while (psi->sendflag == 1)
+            {
+                uint32_t msglen = *(uint32_t *)psmsg->buf;
+                ssize_t n = send(socketfd, psmsg->buf + psmsg->n, msglen - psmsg->n, 0);
+                if (n < 0)
+                {
+                    if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)   // 没有发送完
+                    {
+						fprintf(stderr, "Err: CSocketSrvEpoll send() is waiting !!! \n");
+						#ifdef ERR_EPOLL_SEND_WAIT
+							return ERR_EPOLL_SEND_WAIT;
+						#endif
+                        break;// 
+                    }
+                    else     // 出错
+                    {
+                        fprintf(stderr, "Err: CSocketSrvEpoll send() error happen \n");
+						fprintf(stderr, "Err: CSocketSrvEpoll errno = %d (%s) \n ", errno, strerror(errno));
+                        myclose(index);
+                        // TODO: 通知mainsrv
+                        set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
+                        if (pqs->pushmsg(&tmpmsgbuf) <= 0)
+                        {
+                            fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue !!!!!!\n ");
+							return -1;
+                        }
+                        break;
+                    }
+                }
+                else if (n == 0)    // 一般不返回0
+                {
+                    fprintf(stderr, "Err: CSocketSrvEpoll send() n == 0 \n");
+					break;
+                }
+                else
+                {
+                    psmsg->n += n;
+                    if (psmsg->n == msglen)  // 发送完了，还需要判断通道内是否有数据还要发送
+                    {
+						if (pqm->popmsg(psmsg) > 0)
+						{
+							psmsg->n = 0;
+							psi->sendflag = 1; // 继续发送
+						}
+						else // 通道内没数据
+						{
+							psmsg->n = 0;  // 复位
+							psi->sendflag = 0; // 可以接受新的消息
+							// 修改为只响应EPOLLIN
+							ev.data.fd = socketfd;
+							ev.events = EPOLLIN | EPOLLET;
+							if (epoll_ctl(epfd, EPOLL_CTL_MOD, socketfd, &ev) < 0)
+							{
+								fprintf(stderr, "Err: CSocketSrvEpoll cannot mod fd to EPOLLIN | EPOLLET\n");
+								fprintf(stderr, "Err: CSocketSrvEpoll epfd = %d\n", epfd);
+								fprintf(stderr, "Err: CSocketSrvEpoll srvfd = %d\n", socketfd);
+								return -1;
+							}
+						} 
+                    }
+                }
+            } // end while ()
+        }
+    }
+    return 0;
+}
+
+
+
+
+/* 
+int CSocketSrvEpoll::my_epoll_wait_debug_nosend(CShmQueueSingle * pqs, CShmQueueMulti * pqm)
+{
+    int index;
+    int socketfd;
+    StMsgBuffer tmpmsgbuf;
+	
+	// set EPOLLOUT first
+	pqm->popmsg_complex(epfd, &(socketlist));
+	
+	// handle 
     int nfds = epoll_wait(epfd, events, EPOLL_SIZE, EPOLL_TIMEOUT);
     if ( nfds < 0 )
     {
@@ -159,8 +518,8 @@ int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
         CSocketInfo *psi = &(socketlist.val[index]);  // 获取上下文指针
         StMsgBuffer *prmsg = &(psi->recvmsg);
         StMsgBuffer *psmsg = &(psi->sendmsg);
-        int recvflag = psi->recvflag;
-        int sendflag = psi->sendflag;
+        // int recvflag = psi->recvflag;
+        // int sendflag = psi->sendflag;
 
 
         //-------------------- 一个新socket用户连接到监听端口，建立新的连接
@@ -194,7 +553,7 @@ int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
 
             // 注册新的连接
             ev.data.fd = connfd; // 找到空闲的socketinfo
-            ev.events = EPOLLIN;
+            ev.events = EPOLLIN | EPOLLET;
 
             printf("Info: new connect fd = %d, index = %d \n", connfd, index);
 
@@ -206,92 +565,69 @@ int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
             }
 
             set_MSGID_I2M_NEW_CONNECT(&tmpmsgbuf, index, connfd);
-            if (pshmQueueSingle->pushmsg(&tmpmsgbuf) <= 0)
+            if (pqs->pushmsg(&tmpmsgbuf) <= 0)
             {
                 fprintf(stderr, "Err: CSocketSrvEpoll new connect msg cannot push into queue !!!!!!\n ");
             }
             continue;
         }
 
-        // 发送数据
+        // ------------------------ 发送数据
         if (events[i].events & EPOLLOUT)
         {
-            if (sendflag == 0)  // 没有东西要发送
+            if (psi->sendflag == 0)  // 没有东西要发送
             {
                 fprintf(stderr, "Warn: sendflag == 0 but act EPOLLOUT \n");
                 ev.data.fd = socketfd;
-                ev.events = EPOLLIN;
+                ev.events = EPOLLIN | EPOLLET;
                 if (epoll_ctl(epfd, EPOLL_CTL_MOD, socketfd, &ev) < 0)
-                    fprintf(stderr, "Err: CSocketSrvEpoll cannot mod fd to EPOLLIN\n");
+                    fprintf(stderr, "Err: CSocketSrvEpoll cannot mod fd to EPOLLIN | EPOLLET\n");
             }
-            else
+            while (psi->sendflag == 1)
             {
                 uint32_t msglen = *(uint32_t *)psmsg->buf;
-                ssize_t n = send(socketfd, psmsg->buf + psmsg->n, msglen - psmsg->n, 0);
-                if (n < 0)
-                {
-                    if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)   // 没有发送完
+				psmsg->n = msglen; //debug
+
+                    if (psmsg->n == msglen)  // 发送完了，还需要判断通道内是否有数据还要发送
                     {
-                        continue;// 
+						if (pqm->popmsg(psmsg) > 0)
+						{
+							psmsg->n = 0;
+							psi->sendflag = 1; // 继续发送
+						}
+						else // 通道内没数据
+						{
+							psmsg->n = 0;  // 复位
+							psi->sendflag = 0; // 可以接受新的消息
+							// 修改为只响应EPOLLIN | EPOLLET
+							ev.data.fd = socketfd;
+							ev.events = EPOLLIN | EPOLLET;
+							if (epoll_ctl(epfd, EPOLL_CTL_MOD, socketfd, &ev) < 0)
+								fprintf(stderr, "Err: CSocketSrvEpoll cannot mod fd to EPOLLIN | EPOLLET\n");
+						} 
                     }
-                    else     // 出错
-                    {
-                        fprintf(stderr, "Err: CSocketSrvEpoll send() error happen \n");
-                        // 清除上下文
-                        //index = socketlist.find(socketfd);
-                        socketlist.erase(index);
-                        // 关闭socket
-                        myclose(index);
-                        // TODO: 通知mainsrv
-                        set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
-                        if (pshmQueueSingle->pushmsg(&tmpmsgbuf) <= 0)
-                        {
-                            fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue !!!!!!\n ");
-                        }
-                        continue;
-                    }
-                }
-                else if (n == 0)    // 一般不返回0
-                {
-                    fprintf(stderr, "Err: CSocketSrvEpoll send() n == 0 \n");
-					continue;
-                }
-                else
-                {
-                    psmsg->n += n;
-                    if (psmsg->n == msglen)  // 发送完了
-                    {
-                        psmsg->n = 0;  // 复位
-                        psi->sendflag = 0; // 可以接受新的消息
-                        // 修改为只响应EPOLLIN
-                        ev.data.fd = socketfd;
-                        ev.events = EPOLLIN;
-                        if (epoll_ctl(epfd, EPOLL_CTL_MOD, socketfd, &ev) < 0)
-                            fprintf(stderr, "Err: CSocketSrvEpoll cannot mod fd to EPOLLIN\n");
-                    }
-					continue;
-                }
-            }
+                
+            } // end while ()
         }
-        // 进行读操作
-        else if (events[i].events & EPOLLIN)
+        // ------------------- 进行读操作
+        else if (events[i].events & EPOLLIN | EPOLLET)
         {
-            if (recvflag == 1)  // 已经收取了一个msg，还未取走
+            if (psi->recvflag == 1)  // 已经收取了一个msg，还未取走
             {
                 // TODO 压入共享内存区
                 CMsgHead *phead = (CMsgHead *)prmsg;
                 phead->dstid = socketfd; // read需修改dstid
-                if (pshmQueueSingle->pushmsg(prmsg) >= 0)
+                if (pqs->pushmsg(prmsg) >= 0)
                 {
                     prmsg->n = 0;
                     psi->recvflag = 0;
                 }
                 else
                 {
-                    fprintf(stderr, "Err: CSocketSrvEpoll EPOLLIN but queue is full < 0 !!!!!!\n ");
+                    fprintf(stderr, "Err: CSocketSrvEpoll EPOLLIN | EPOLLET but queue is full < 0 !!!!!!\n ");
                 }
             }
-            else
+            while (psi->recvflag == 0)
             {
                 if (prmsg->n < 4)  // 还未获取到msglen
                 {
@@ -304,54 +640,44 @@ int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
                     {
                         if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)  // 跳出，等待下次接收
                         {
-                            continue;// here can just continue
+                            break;// here can just continue
                         }
                         else if (errno == ECONNRESET)     // 对方关闭了socket
                         {
                             fprintf(stdout, "Warn: CSocketSrvEpoll ECONNRESET \n ");
-                            // 清除上下文
-                            socketlist.erase(index);
-                            // 关闭socket
-                            close(socketfd);
+                            myclose(index);
                             // TODO: 通知mainsrv
                             set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
-                            if (pshmQueueSingle->pushmsg(&tmpmsgbuf) <= 0)
+                            if (pqs->pushmsg(&tmpmsgbuf) <= 0)
                             {
                                 fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue !!!!!!\n ");
                             }
-                            continue;
+                            break;
                         }
                         else
                         {
                             fprintf(stdout, "Warn: CSocketSrvEpoll n < 0 but donot know why \n ");
-                            // 清除上下文
-                            //index = socketlist.find(socketfd);
-                            socketlist.erase(index);
-                            // 关闭socket
-                            close(socketfd);
+                            myclose(index);
                             // TODO: 通知mainsrv
                             set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
-                            if (pshmQueueSingle->pushmsg(&tmpmsgbuf) <= 0)
+                            if (pqs->pushmsg(&tmpmsgbuf) <= 0)
                             {
                                 fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue !!!!!!\n ");
                             }
-                            continue;
+                            break;
                         }
                     }
                     else if (n == 0)    // 对端关闭
                     {
                         fprintf(stdout, "Warn: CSocketSrvEpoll recv n = 0 \n");
-                        // 清除上下文
-                        socketlist.erase(index);
-                        // 关闭socket
-                        close(socketfd);
+                        myclose(index);
                         // TODO: 通知mainsrv
                         set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
-                        if (pshmQueueSingle->pushmsg(&tmpmsgbuf) <= 0)
+                        if (pqs->pushmsg(&tmpmsgbuf) <= 0)
                         {
                             fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue !!!!!!\n ");
                         }
-                        continue;
+                        break;
                     }
                 }
                 if (prmsg->n >= 4)  // 已经获取到msglen
@@ -366,7 +692,7 @@ int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
                             CMsgHead *phead = (CMsgHead *)prmsg;
                             phead->dstid = socketfd; // read需修改dstid
                             // TODO 压入共享内存区
-                            if (pshmQueueSingle->pushmsg(prmsg) >= 0)
+                            if (pqs->pushmsg(prmsg) >= 0)
                             {
                                 prmsg->n = 0;
                                 psi->recvflag = 0;
@@ -383,73 +709,58 @@ int CSocketSrvEpoll::my_epoll_wait(CShmQueueSingle *pshmQueueSingle)
                     {
                         if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)  // 跳出，等待下次接收
                         {
-                            continue;
+                            break;
                         }
                         else if (errno == ECONNRESET)     // 对方关闭了socket
                         {
                             fprintf(stdout, "Warn: CSocketSrvEpoll ECONNRESET \n");
-                            // 清除上下文
-                            //index = socketlist.find(socketfd);
-                            socketlist.erase(index);
-                            // 关闭socket
-                            close(socketfd);
+                            myclose(index);
                             // TODO: 通知mainsrv
                             set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
-                            if (pshmQueueSingle->pushmsg(&tmpmsgbuf) <= 0)
+                            if (pqs->pushmsg(&tmpmsgbuf) <= 0)
                             {
                                 fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue !!!!!!\n ");
                             }
-                            continue;
+                            break;
                         }
                         else
                         {
                             fprintf(stdout, "Warn: CSocketSrvEpoll recv n < 0 but donnot why \n");
-                            // 清除上下文
-                            //index = socketlist.find(socketfd);
-                            socketlist.erase(index);
-                            // 关闭socket
-                            close(socketfd);
+                            myclose(index);
                             // TODO: 通知mainsrv
                             set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
-                            if (pshmQueueSingle->pushmsg(&tmpmsgbuf) <= 0)
+                            if (pqs->pushmsg(&tmpmsgbuf) <= 0)
                             {
                                 fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue !!!!!!\n ");
                             }
-                            continue;
+                            break;
                         }
                     }
                     else if (n == 0)    // 对端关闭
                     {
                         fprintf(stdout, "Warn: CSocketSrvEpoll recv n = 0 \n");
-                        // 清除上下文
-                        //index = socketlist.find(socketfd);
-                        socketlist.erase(index);
-                        // 关闭socket
-                        close(socketfd);
+                        myclose(index);
                         // TODO: 通知mainsrv
                         set_MSGID_I2M_CLO_CONNECT(&tmpmsgbuf, index, socketfd);
-                        if (pshmQueueSingle->pushmsg(&tmpmsgbuf) <= 0)
+                        if (pqs->pushmsg(&tmpmsgbuf) <= 0)
                         {
                             fprintf(stderr, "Err: CSocketSrvEpoll close connect msg cannot push into queue !!!!!!\n ");
                         }
-                        continue;
+                        break;
                     }
 
                 }
             
-            }
+            } // while (psi->recvflag == 0)
 
         }
     }
     return 0;
 }
 
+ */
 
-
-
-
-
-
+/* 
 int CSocketSrvEpoll::my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle)
 {
     int index;
@@ -512,7 +823,7 @@ int CSocketSrvEpoll::my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle)
 
             // 注册新的连接
             ev.data.fd = connfd; // 找到空闲的socketinfo
-            ev.events = EPOLLIN;
+            ev.events = EPOLLIN | EPOLLET;
 
             printf("Info: new connect fd = %d, index = %d \n", connfd, index);
 
@@ -545,6 +856,7 @@ int CSocketSrvEpoll::my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle)
                     else     // 出错
                     {
                         fprintf(stderr, "Err: CSocketSrvEpoll send() error happen \n");
+						fprintf(stderr, "Err: CSocketSrvEpoll errno = %d (%s) \n ", errno, strerror(errno));
                         myclose(index);
                         continue;
                     }
@@ -562,16 +874,16 @@ int CSocketSrvEpoll::my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle)
                         psmsg->n = 0;  // 复位
 
                         ev.data.fd = socketfd;
-                        ev.events = EPOLLIN;
+                        ev.events = EPOLLIN | EPOLLET;
                         if (epoll_ctl(epfd, EPOLL_CTL_MOD, socketfd, &ev) < 0)
-                            fprintf(stderr, "Err: CSocketSrvEpoll cannot mod fd to EPOLLIN\n");
+                            fprintf(stderr, "Err: CSocketSrvEpoll cannot mod fd to EPOLLIN | EPOLLET\n");
                     }
 					continue;
                 }
             
         }
         // 进行读操作
-        else if (events[i].events & EPOLLIN)
+        else if (events[i].events & EPOLLIN | EPOLLET)
         {
                 if (prmsg->n < 4)  // 还未获取到msglen
                 {
@@ -621,8 +933,8 @@ int CSocketSrvEpoll::my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle)
 							
 
 
-	CMsgRequestLoginPara *pinpara =
-        (CMsgRequestLoginPara *)(prmsg->buf + sizeof(CMsgHead));	
+	// CMsgRequestLoginPara *pinpara =
+        // (CMsgRequestLoginPara *)(prmsg->buf + sizeof(CMsgHead));	
 
 							
 	CMsgResponseLoginPara *poutpara =
@@ -701,3 +1013,5 @@ int CSocketSrvEpoll::my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle)
     }
     return 0;
 }
+
+ */

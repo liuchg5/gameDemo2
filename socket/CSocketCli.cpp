@@ -74,12 +74,14 @@ int CSocketCli::myclose()
     return 0;
 }
 
-
+#define RECV_WAIT_TIME 1000
 int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
 {
     //一般要通过select来判断，但这里简化处理，假设成功
     //一次处理完
 
+	static int recv_wait_time = 0; //debug
+	
     ssize_t n;
     uint32_t msglen;
 
@@ -94,6 +96,7 @@ int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
         else
         {
             fprintf(stderr, "Err: CSocketCli recvQ is full < 0 !!!!!!\n ");
+			return -1;
         }
     }
     while (recvflag == 0)
@@ -109,7 +112,10 @@ int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
             {
                 if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
                 {
-                    // printf("recv() have to wait\n");
+                    if (recv_wait_time++ > RECV_WAIT_TIME){
+						fprintf(stderr, "Err:CSocketCli recv wait %d times !! \n", RECV_WAIT_TIME);
+						recv_wait_time = 0;
+					}
                     break;
                 }
                 else if (errno == ECONNRESET)
@@ -150,6 +156,7 @@ int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
                     {
                         fprintf(stderr, "Err: CSocketCli recvQ is full < 0 !!!!!!\n ");
                         recvflag = 1;
+						return -1;
                     }
                 }
             }
@@ -157,7 +164,10 @@ int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
             {
                 if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
                 {
-                    // printf("recv() have to wait\n");
+                    if (recv_wait_time++ > recv_wait_time){
+						fprintf(stderr, "Err:CSocketCli recv wait %d times !! \n", RECV_WAIT_TIME);
+						recv_wait_time = 0;
+					}
                     break;
                 }
                 else if (errno == ECONNRESET)
@@ -205,6 +215,7 @@ int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
             if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
             {
                 printf("send() have to wait\n");
+				// return -1;
                 break;
             }
             else if (errno == ECONNRESET)
@@ -237,6 +248,7 @@ int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
                 else
                 {
                     sendflag = 0;
+					sendmsg.n = 0;
                 }
             }
         }

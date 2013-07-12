@@ -47,3 +47,15 @@ Client(java) in host machine:
 	about 41330 msg per 5s (insrv midsrv outsrv) 50 connect (40 bottleneck) id 20
 but using dbsrv it will be 5000 msg per 5s 
 because one connect EPOLL just can handle!!!
+
+===== 2013-07-12 Day =====
+find the problem: multi queue just put one msg into srv then srv just send one msg one time then sleep.
+check the ideaing...
+lookup the shm max: $cat /proc/sys/kernel/shmmax 
+set the shm max: $echo "134217728" > /proc/sys/kernel/shmmax  #(128MB)
+ipcs -m; ipcrm -m shmid;
+Client(java) in host machine:
+	about 7500 msg per 1s (insrv midsrv outsrv) 
+	about 1700 msg per 1s (insrv midsrv outsrv db_insrv db_midsrv)
+if not set EPOLLOUT(just discard the msg), it will be very fast!!! 
+deal from this point.

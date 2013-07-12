@@ -40,30 +40,33 @@ int main(int argc, char ** argv)
 	cli.open(tmp, port);
 	
 	CShmQueueSingle recvQ;
-    recvQ.crt(1024 * 1024 * 1, 3333);
+    recvQ.crt(SQ3_SIZE, SQ3_FTOLK);
     recvQ.get();
     recvQ.init();
     recvQ.clear();
 	
 	CShmQueueSingle sendQ;
-    sendQ.crt(1024 * 1024 * 1, 4444);
+    sendQ.crt(SQ4_SIZE, SQ4_FTOLK);
     sendQ.get();
     sendQ.init();
     sendQ.clear();
 	
 	while (1)
     {
-        if (cli.recv_and_send(&recvQ, &sendQ) < 0)
+        // if (cli.recv_and_send(&recvQ, &sendQ) < 0)
+		// {
+			// fprintf(stderr, "Err: outsrv: cli.recv_and_send(&recvQ, &sendQ) < 0 \n");
+			// return -1;
+		// }
+		
+		if (cli.recv_and_send_debug(&recvQ, &sendQ) < 0)  //debug
 		{
 			fprintf(stderr, "Err: cli.recv_and_send() failed! \n");
 			return -1;
 		}
-		// if (cli.recv_and_send_debug(&recvQ, &sendQ) < 0)  //debug
-		// {
-			// fprintf(stderr, "Err: cli.recv_and_send() failed! \n");
-			// return -1;
-		// }
 		
         usleep(OUT_SLEEP_TIME);
+		
+		// printf("usleep(OUT_SLEEP_TIME); \n");
     }
 }

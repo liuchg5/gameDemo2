@@ -22,25 +22,25 @@ int main(int argc, char **argv)
 
 
     CShmQueueSingle sinq;
-    sinq.crt(1024 * 1024 * 4, 1111);
+    sinq.crt(SQ1_SIZE, SQ1_FTOLK);
     sinq.get();
     sinq.init();
     sinq.clear();
 
     CShmQueueMulti mulq;
-    mulq.crt(1024 * 1024 * 2, 2222);
+    mulq.crt(MQ1_SIZE, MQ1_FTOLK);
     mulq.get();
     mulq.init(GLOBAL_EPOLL_SIZE);
     mulq.clear();
 
     CShmQueueSingle sinq_from_out;
-    sinq_from_out.crt(1024 * 1024 * 1, 3333);
+    sinq_from_out.crt(SQ3_SIZE, SQ3_FTOLK);
     sinq_from_out.get();
     sinq_from_out.init();
     sinq_from_out.clear();
 
     CShmQueueSingle sinq_to_out;
-    sinq_to_out.crt(1024 * 1024 * 1, 4444);
+    sinq_to_out.crt(SQ4_SIZE, SQ4_FTOLK);
     sinq_to_out.get();
     sinq_to_out.init();
     sinq_to_out.clear();
@@ -56,12 +56,20 @@ int main(int argc, char **argv)
     {
 		while (sinq.popmsg(&msgbuf) > 0)
 		{
-			gme.handle_client(&msgbuf, &mulq, &sinq_to_out);
+			if (gme.handle_client(&msgbuf, &mulq, &sinq_to_out) < 0)
+			{
+				fprintf(stderr, "Err: midsrv: gme.handle_client(&msgbuf, &mulq, &sinq_to_out) < 0 \n");
+				exit(-1);
+			}
 		}
 		
 		while (sinq_from_out.popmsg(&msgbuf) > 0)
 		{
-			gme.handle_db(&msgbuf, &mulq, &sinq_to_out);
+			if (gme.handle_db(&msgbuf, &mulq, &sinq_to_out) < 0)
+			{
+				fprintf(stderr, "Err: midsrv: gme.handle_db(&msgbuf, &mulq, &sinq_to_out) < 0 \n");
+				exit(-1);
+			}
 		}
 
         // while (sinq.popmsg(&msgbuf) > 0)   // debug!!!
@@ -77,6 +85,7 @@ int main(int argc, char **argv)
 		// }
 
         usleep(MID_SLEEP_TIME);
+		// printf("usleep(MID_SLEEP_TIME); \n");
     }
 }
 

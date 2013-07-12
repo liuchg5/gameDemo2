@@ -37,21 +37,26 @@ int main(int argc, char **argv)
     srv.open(tmp, port);
 
     CShmQueueSingle sinq;
-    sinq.crt(1024 * 1024 * 1, 5555);
+    sinq.crt(SQ5_SIZE, SQ5_FTOLK);
     sinq.get();
     sinq.init();
     sinq.clear();
 
     CShmQueueMulti mulq;
-    mulq.crt(1024 * 1024 * 1, 6666);
+    mulq.crt(MQ6_SIZE, MQ6_FTOLK);
     mulq.get();
     mulq.init(GLOBAL_EPOLL_SIZE_DB);
     mulq.clear();
 
     while (1)
     {
-        mulq.popmsg_complex(srv.epfd, &(srv.socketlist));
-        srv.my_epoll_wait(&sinq);
+        if (srv.my_epoll_wait(&sinq, &mulq) < 0)
+		{
+			fprintf(stderr, "Err: db_insrv: srv.my_epoll_wait(&sinq, &mulq) < 0 \n");
+			exit(-1);
+		}
         usleep(IN_SLEEP_TIME_DB);
+		
+		// printf("usleep(IN_SLEEP_TIME_DB); \n");
     }
 }

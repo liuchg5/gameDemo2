@@ -24,14 +24,14 @@ int CGMEngine::handle_client(StMsgBuffer *pmsg, CShmQueueMulti *pqm, CShmQueueSi
     case MSGID_I2M_NEW_CONNECT:
         if (map.reg(srcid, dstid) < 0)
         {
-            fprintf(stderr, "Err: map.reg() return neg val !!!\n");
+            fprintf(stderr, "Err: CGMEngine map.reg() return neg val !!!\n");
         }
         break;
 
     case MSGID_I2M_CLO_CONNECT:
         if (map.del(srcid) < 0)
         {
-            fprintf(stderr, "Err: map.del() return neg val !!\n");
+            fprintf(stderr, "Err: CGMEngine map.del() return neg val !!\n");
         }
         break;
 
@@ -40,7 +40,7 @@ int CGMEngine::handle_client(StMsgBuffer *pmsg, CShmQueueMulti *pqm, CShmQueueSi
         break;
 
     default:
-        fprintf(stderr, "Err: handle_client wrong msgid = %d !!\n", phead->msgid);
+        fprintf(stderr, "Err: CGMEngine handle_client wrong msgid = %d !!\n", phead->msgid);
         return -1;
         break;
     }
@@ -59,7 +59,7 @@ int CGMEngine::handle_db(StMsgBuffer *pmsg, CShmQueueMulti *pqm, CShmQueueSingle
         break;
 
     default:
-        fprintf(stderr, "Err: handle_db wrong msgid = %d !!\n", phead->msgid);
+        fprintf(stderr, "Err:CGMEngine handle_db wrong msgid = %d !!\n", phead->msgid);
         return -1;
         break;
     }
@@ -102,7 +102,7 @@ int CGMEngine::handle_RequestLogin(StMsgBuffer *pmsg, CShmQueueMulti *pqm, CShmQ
     // printf("CGMEngine::    msglen = %d \n", phead->msglen);
     if (pqs->pushmsg(&tmpmsgbuf) < 0)
     {
-        fprintf(stderr, "Err: pqs->pushmsg() return neg val mean it is full !!!\n");
+        fprintf(stderr, "Err: CGMEngine pqs->pushmsg() return neg val mean it is full !!!\n");
         return -1;
     }
     return 0;
@@ -150,7 +150,8 @@ int CGMEngine::handle_RequestUserInfo(StMsgBuffer *pmsg, CShmQueueMulti *pqm, CS
 
     if (map.fnd(&index, dstid) < 0)
     {
-        fprintf(stderr, "Err: map.fnd() return neg val !!\n" );
+        fprintf(stderr, "Err: CGMEngine map.fnd() return neg val mean srvfd is wrong !!\n" );
+		fprintf(stderr, "Err: CGMEngine srvfd = %d !!\n", dstid);
         return -1;
     }
 
@@ -158,8 +159,8 @@ int CGMEngine::handle_RequestUserInfo(StMsgBuffer *pmsg, CShmQueueMulti *pqm, CS
     if (pqm->pushmsg(index, &tmpmsgbuf) < 0)
     {
 
-        fprintf(stderr, "Err: pqm->pushmsg() return neg val !!!\n");
-        fprintf(stderr, "Err: index = %d  !!!\n", index);
+        fprintf(stderr, "Err: CGMEngine pqm->pushmsg() return neg val mean it is full !!!\n");
+        fprintf(stderr, "Err: CGMEngine index = %d  !!!\n", index);
         return -1;
     }
     return 0;

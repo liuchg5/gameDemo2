@@ -1,4 +1,5 @@
 *.bak
+*.out
 debug
 insrv/insrv
 midsrv/midsrv

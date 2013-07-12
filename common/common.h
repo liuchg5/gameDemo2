@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <time.h>
 
-#define GLOBAL_EPOLL_SIZE 		4000
+#define GLOBAL_EPOLL_SIZE 		2000
 #define GLOBAL_EPOLL_TIMEOUT 	0
 #define GLOBAL_EPOLL_LISTENQ 	500
 
@@ -15,12 +15,30 @@
 #define MID_SLEEP_TIME	1
 #define OUT_SLEEP_TIME	1
 
-#define GLOBAL_EPOLL_SIZE_DB		100
+#define GLOBAL_EPOLL_SIZE_DB		2
 #define GLOBAL_EPOLL_TIMEOUT_DB 	0
-#define GLOBAL_EPOLL_LISTENQ_DB 	100
+#define GLOBAL_EPOLL_LISTENQ_DB 	2
 #define IN_SLEEP_TIME_DB	1
 #define MID_SLEEP_TIME_DB	1
 
+// 吞吐量与队列长度息息相关！！！
+#define SQ1_SIZE	(1024*1024*4)
+#define SQ1_FTOLK	(1111)
+
+#define MQ1_SIZE	(1024*1024*32)
+#define MQ1_FTOLK	(2222)
+
+#define SQ3_SIZE	(1024*1024*4)
+#define SQ3_FTOLK	(3333)
+
+#define SQ4_SIZE	(1024*1024*4)
+#define SQ4_FTOLK	(4444)
+
+#define SQ5_SIZE	(1024*1024*4)
+#define SQ5_FTOLK	(5555)
+
+#define MQ6_SIZE	(1024*1024*16)
+#define MQ6_FTOLK	(6666)
 
 // 设为非阻塞socket函数
 int setnonblocking(int sock) ;

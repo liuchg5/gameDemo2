@@ -18,8 +18,10 @@
 #include "CSocketList.h"
 
 #include "../common/common.h"
+#include "../common/myerror.h"
 #include "../common/CStatistics.h"
 #include "../queue/CShmQueueSingle.h"
+#include "../queue/CShmQueueMulti.h"
 
 class CSocketSrvEpoll
 {
@@ -49,9 +51,11 @@ public:
 	int myclose();
 	int myclose(int index);
 
-	int my_epoll_wait(CShmQueueSingle * pshmQueueSingle);
+	int my_epoll_wait(CShmQueueSingle * pqs, CShmQueueMulti * pqm);
 	
-	int my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle);
+	// int my_epoll_wait_debug_nosend(CShmQueueSingle * pqs, CShmQueueMulti * pqm);
+	
+	// int my_epoll_wait_debug(CShmQueueSingle *pshmQueueSingle);
 
 };
 

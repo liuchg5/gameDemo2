@@ -44,13 +44,24 @@ public:
     int pushmsg(int index, StMsgBuffer *pmsg)   // index内部需要-1处理
     {
         sta.check("CShmQueueMulti.pushmsg");
-        index--;
+
         pq = (CQueue *)(base + index * size);
         pmsgbase = (char *)pq + sizeof(CQueue);
         return pq->push(pmsgbase, pmsg->buf);
     }
     int popmsg_complex(int epfd, CSocketList *plist);  // 返回修改的fd数目
-
+	
+	int top_justmsg()
+	{
+		return pq->top_just(pmsgbase);
+	}
+	
+	int popmsg(StMsgBuffer * pmsg)
+	{
+		return pq->pop(pmsgbase, pmsg->buf);
+	}
+	
+	int popmsg_complex_noset_epollout(int epfd, CSocketList *plist); // debug
 };
 
 #endif

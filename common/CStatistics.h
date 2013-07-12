@@ -80,8 +80,8 @@ public:
         //     return ;
         if (rtn == 0)
         {
-            fprintf(stdout, "Statistics: { %s } [%ld] Per (%ld) seconds \n",
-                    str, lval, (ltimeuse / 1000) );
+            fprintf(stdout, "Statistics: { %s } [%ld] Per seconds (%ld)  \n",
+                    str, lval/5, (ltimeuse / 1000) );
         }
     }
 	

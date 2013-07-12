@@ -20,13 +20,13 @@ int main(int argc, char **argv)
 
 
     CShmQueueSingle sinq;
-    sinq.crt(1024 * 1024 * 1, 5555);
+    sinq.crt(SQ5_SIZE, SQ5_FTOLK);
     sinq.get();
     sinq.init();
     sinq.clear();
 
     CShmQueueMulti mulq;
-    mulq.crt(1024 * 1024 * 1, 6666);
+    mulq.crt(MQ6_SIZE, MQ6_FTOLK);
     mulq.get();
     mulq.init(GLOBAL_EPOLL_SIZE_DB);
     mulq.clear();
@@ -41,9 +41,15 @@ int main(int argc, char **argv)
     {
 		while (sinq.popmsg(&msgbuf) > 0)
 		{
-			dbe.handle(&msgbuf, &mulq);
+			if (dbe.handle(&msgbuf, &mulq) < 0)
+			{
+				fprintf(stderr, "Err: db_midsrv: dbe.handle(&msgbuf, &mulq) < 0 \n");
+				exit(-1);
+			}
 		}
 
         usleep(MID_SLEEP_TIME_DB);
+		
+		// printf("usleep(MID_SLEEP_TIME_DB); \n");
     }
 }

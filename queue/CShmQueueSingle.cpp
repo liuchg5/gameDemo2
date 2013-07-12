@@ -28,6 +28,7 @@ int CShmQueueSingle::crt(int size, int ftolk_val)
     {
         fprintf(stderr, "Err: CShmQueueSingle create shared memory \n");
         fprintf(stderr, "Err: CShmQueueSingle errno = %d (%s) \n", errno, strerror(errno));
+		fprintf(stderr, "Err: CShmQueueSingle SHM_SIZE = %d MB \n", SHM_SIZE/1024/1024);
         return shmid;
     }
     fprintf(stdout, "Info: CShmQueueSingle create shared memory \n");

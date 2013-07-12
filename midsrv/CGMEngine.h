@@ -7,6 +7,7 @@
 #include "../queue/CShmQueueMulti.h"
 #include "../queue/CShmQueueSingle.h"
 #include "../common/CMap.h"
+#include "../common/myerror.h"
 
 
 class CGMEngine

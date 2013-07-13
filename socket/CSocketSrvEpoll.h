@@ -38,20 +38,22 @@ public:
 	socklen_t clientAddrLen;
     struct sockaddr_in serveraddr;
     CSocketList socketlist;
+    CShmQueueSingle * pqs;
+    CShmQueueMulti * pqm;
 	
 	CStatistics sta;
 	
 	
 
 public:
-	CSocketSrvEpoll(int epoll_size, int epoll_timeout, int listenq);
+	CSocketSrvEpoll(int epoll_size, int epoll_timeout, int listenq, CShmQueueSingle * pqs, CShmQueueMulti * pqm);
 	~CSocketSrvEpoll();
 	
 	int open(const char * serv_addr, int port_number);
 	int myclose();
 	int myclose(int index);
 
-	int my_epoll_wait(CShmQueueSingle * pqs, CShmQueueMulti * pqm);
+	int my_epoll_wait();
 	
 	// int my_epoll_wait_debug_nosend(CShmQueueSingle * pqs, CShmQueueMulti * pqm);
 	

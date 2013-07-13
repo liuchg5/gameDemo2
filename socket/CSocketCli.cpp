@@ -74,7 +74,7 @@ int CSocketCli::myclose()
     return 0;
 }
 
-#define RECV_WAIT_TIME 1000
+// #define RECV_WAIT_TIME 1000
 int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
 {
     //一般要通过select来判断，但这里简化处理，假设成功
@@ -112,10 +112,12 @@ int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
             {
                 if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
                 {
+                    #ifdef RECV_WAIT_TIME
                     if (recv_wait_time++ > RECV_WAIT_TIME){
 						fprintf(stderr, "Err:CSocketCli recv wait %d times !! \n", RECV_WAIT_TIME);
 						recv_wait_time = 0;
 					}
+                    #endif
                     break;
                 }
                 else if (errno == ECONNRESET)
@@ -127,6 +129,7 @@ int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
                 else
                 {
                     fprintf(stderr, "Err: CSocketCli recv n < 0 but donot why \n ");
+                    fprintf(stderr, "Err: CSocketCli errno = %d (%s) \n ", errno, strerror(errno));
                     myclose();
                     return -1;
                 }
@@ -164,10 +167,12 @@ int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
             {
                 if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
                 {
-                    if (recv_wait_time++ > recv_wait_time){
+                    #ifdef RECV_WAIT_TIME
+                    if (recv_wait_time++ > RECV_WAIT_TIME){
 						fprintf(stderr, "Err:CSocketCli recv wait %d times !! \n", RECV_WAIT_TIME);
 						recv_wait_time = 0;
 					}
+                    #endif
                     break;
                 }
                 else if (errno == ECONNRESET)
@@ -179,6 +184,7 @@ int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
                 else
                 {
                     fprintf(stderr, "Err: CSocketCli recv n < 0 but donot why \n ");
+                    fprintf(stderr, "Err: CSocketCli errno = %d (%s) \n ", errno, strerror(errno));
                     myclose();
                     return -1;
                 }
@@ -227,6 +233,7 @@ int CSocketCli::recv_and_send(CShmQueueSingle *precvQ, CShmQueueSingle *psendQ)
             else
             {
                 fprintf(stderr, "Err: CSocketCli recv n < 0 but donot why \n ");
+                fprintf(stderr, "Err: CSocketCli errno = %d (%s) \n ", errno, strerror(errno));
                 myclose();
                 return -1;
             }

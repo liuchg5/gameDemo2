@@ -32,7 +32,7 @@ Client(java) in host machine:
 	about 39499 msg per 5s (insrv) 50 connect id 30
 	about 36296 msg per 5s (insrv midsrv) 50 connect id 20
 	about 12037 msg per 5s (insrv midsrv outsrv) 50 connect (10 bottleneck) id 50
-mod "CMsgHead" "CMsgPara" #pragma pack(1)//�趨Ϊ1�ֽڶ��� 
+mod "CMsgHead" "CMsgPara" #pragma pack(1)//设定为1字节对齐 
 add java client
 
 ==== 2013-07-11 Night ====
@@ -59,3 +59,18 @@ Client(java) in host machine:
 	about 1700 msg per 1s (insrv midsrv outsrv db_insrv db_midsrv)
 if not set EPOLLOUT(just discard the msg), it will be very fast!!! 
 deal from this point.
+
+===== 2013-07-13 Day morning ====
+use writable then good performance:
+Client(java) in host machine:
+	Test for throughout:
+	about 17512 msg per 1s (insrv midsrv outsrv db_insrv db_midsrv[another vm]) id 0 150 connect
+	about 4000 msg per 1s (the same) id 0 4000 connect 1000ms
+
+problem: context switch is too high!
+add insrv sleep time, add inline, mod mulq.popmsg_complex()
+Client(java) in host machine:
+	sleep time change from 1 to 50
+	about 8088 msg per 1s (insrv midsrv outsrv db_insrv db_midsrv[another vm]) id 0 5000 connect 500ms
+
+

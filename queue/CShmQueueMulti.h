@@ -11,7 +11,9 @@
 #include "../msg/StMsgBuffer.h"
 #include "../socket/CSocketList.h"
 #include "../common/CStatistics.h"
+#include "../common/msgcommon.h"
 
+class CSocketSrvEpoll;
 // queue中的index从0开始，而list中是1开始，注意，外部使用1开始的index
 class CShmQueueMulti  // 只能使用指针模式，指向共享内存区基址
 {
@@ -49,7 +51,7 @@ public:
         pmsgbase = (char *)pq + sizeof(CQueue);
         return pq->push(pmsgbase, pmsg->buf);
     }
-    int popmsg_complex(int epfd, CSocketList *plist);  // 返回修改的fd数目
+    int popmsg_complex(CSocketSrvEpoll * psrv);  // 返回修改的fd数目
 	
 	int top_justmsg()
 	{

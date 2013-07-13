@@ -7,19 +7,19 @@
 #include <unistd.h>
 #include <time.h>
 
-#define GLOBAL_EPOLL_SIZE 		2000
+#define GLOBAL_EPOLL_SIZE 		10000
 #define GLOBAL_EPOLL_TIMEOUT 	0
 #define GLOBAL_EPOLL_LISTENQ 	500
 
-#define IN_SLEEP_TIME	1
-#define MID_SLEEP_TIME	1
-#define OUT_SLEEP_TIME	1
+#define IN_SLEEP_TIME	50
+#define MID_SLEEP_TIME	50
+#define OUT_SLEEP_TIME	50
 
 #define GLOBAL_EPOLL_SIZE_DB		2
 #define GLOBAL_EPOLL_TIMEOUT_DB 	0
 #define GLOBAL_EPOLL_LISTENQ_DB 	2
-#define IN_SLEEP_TIME_DB	1
-#define MID_SLEEP_TIME_DB	1
+#define IN_SLEEP_TIME_DB	50
+#define MID_SLEEP_TIME_DB	50
 
 // 吞吐量与队列长度息息相关！！！
 #define SQ1_SIZE	(1024*1024*4)

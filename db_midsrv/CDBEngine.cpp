@@ -22,6 +22,7 @@ int CDBEngine::handle(StMsgBuffer * pmsg, CShmQueueMulti * pqm)
 	switch (phead->msgid)
     {
     case MSGID_I2M_NEW_CONNECT:
+        fprintf(stdout, "Info: CDBEngine map.reg() srvfd = %d !!!\n", dstid);
         if (map.reg(srcid, dstid) < 0)
         {
             fprintf(stderr, "Err: CDBEngine map.reg() return neg val !!!\n");

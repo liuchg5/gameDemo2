@@ -34,9 +34,6 @@ int main(int argc, char **argv)
 		port = 10203;
 	}
 
-    CSocketSrvEpoll srv(GLOBAL_EPOLL_SIZE, GLOBAL_EPOLL_TIMEOUT, GLOBAL_EPOLL_LISTENQ);//epollsize epolltimeout listenq
-    srv.open(tmp, port);
-
     CShmQueueSingle sinq;
     sinq.crt(SQ1_SIZE, SQ1_FTOLK);  
     sinq.get();
@@ -49,12 +46,21 @@ int main(int argc, char **argv)
     mulq.init(GLOBAL_EPOLL_SIZE);
     mulq.clear();
 
+    CSocketSrvEpoll srv(GLOBAL_EPOLL_SIZE, GLOBAL_EPOLL_TIMEOUT, GLOBAL_EPOLL_LISTENQ, &sinq, &mulq);//epollsize epolltimeout listenq
+    srv.open(tmp, port);
+
     while (1)
     {
         
-        if (srv.my_epoll_wait(&sinq, &mulq) < 0)
+        if (srv.my_epoll_wait() < 0)
 		{
 			fprintf(stderr, "Err: insrv: srv.my_epoll_wait(&sinq, &mulq) < 0 \n");
+			exit(-1);
+		}
+
+		if (mulq.popmsg_complex(&srv) < 0)
+		{
+			fprintf(stderr, "Err: insrv: mulq.popmsg_complex() < 0 \n");
 			exit(-1);
 		}
 		
